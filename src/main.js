@@ -32,7 +32,8 @@ const state = {
   bufferedMessages: [],
   bufferTimer: null,
   replyTo: null,
-  isAtBottom: true
+  isAtBottom: true,
+  isSending: false
 };
 
 const relayConnections = new Map();
@@ -2116,6 +2117,7 @@ async function handleCommand(text) {
 }
 
 async function handleSend(text) {
+  if (state.isSending) return;
   const trimmed = text.trim();
   if (!trimmed) return;
 
@@ -2162,6 +2164,8 @@ async function handleSend(text) {
   }
 
   try {
+    state.isSending = true;
+    if (sendBtn) sendBtn.disabled = true;
     const msg = await invoke("send_message", {
       message: {
         room: normalizeRoom(state.currentRoom),
@@ -2185,6 +2189,9 @@ async function handleSend(text) {
     }
   } catch (err) {
     setStatus(String(err));
+  } finally {
+    state.isSending = false;
+    if (sendBtn) sendBtn.disabled = false;
   }
 }
 
