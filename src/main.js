@@ -7,10 +7,6 @@ import { createClient } from "@supabase/supabase-js";
 const DEFAULT_SUPABASE_URL = "https://nuildqmtkmzcwkgfnqki.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY =
   "sb_publishable_QEjAIv_oVtq7M73mnTRqOA_kGM8tKhr";
-const DEFAULT_MAX_AUDIO_MB = 20;
-const DEFAULT_MAX_VIDEO_MB = 50;
-const INLINE_MEDIA_MAX_MB = 5;
-const MAX_PAYLOAD_KB = 8000;
 const MAX_ATTACHMENT_COUNT = 2;
 
 const el = (id) => document.getElementById(id);
@@ -23,8 +19,6 @@ const state = {
   attachments: [],
   maxImageKB: 300,
   maxPayloadKB: 6000,
-  maxAudioMB: DEFAULT_MAX_AUDIO_MB,
-  maxVideoMB: DEFAULT_MAX_VIDEO_MB,
   lastMessageId: new Map(),
   lastCreatedAtByRoom: new Map(),
   replyTo: null,
@@ -295,6 +289,7 @@ const supabaseAnonKeyInput = el("supabase-anon-key");
 const supabaseBucketInput = el("supabase-bucket");
 const fileInput = el("file-input");
 const toastStack = el("toast-stack");
+const statusBanner = el("status-banner");
 const imageViewer = el("image-viewer");
 const viewerImage = el("viewer-image");
 const jumpLatest = el("jump-latest");
@@ -354,8 +349,6 @@ function defaultSettings() {
     rooms: ["#echo"],
     max_image_kb: 200,
     max_payload_kb: 6000,
-    max_audio_mb: DEFAULT_MAX_AUDIO_MB,
-    max_video_mb: DEFAULT_MAX_VIDEO_MB,
     supabase_upload: false,
     supabase_url: DEFAULT_SUPABASE_URL,
     supabase_anon_key: DEFAULT_SUPABASE_ANON_KEY,
@@ -744,6 +737,18 @@ function registerExternalEmbed(iframe, { type, title } = {}) {
 
 function resubscribeRelays() {
   subscribeSupabaseRoom(state.currentRoom);
+}
+
+function showStatusBanner(text, timeoutMs = 2500) {
+  if (!statusBanner) return;
+  statusBanner.textContent = text;
+  statusBanner.classList.remove("hidden");
+  if (showStatusBanner._timer) {
+    clearTimeout(showStatusBanner._timer);
+  }
+  showStatusBanner._timer = setTimeout(() => {
+    statusBanner.classList.add("hidden");
+  }, timeoutMs);
 }
 
 function subscribeSupabaseRoom(room) {
@@ -1199,16 +1204,11 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   const yandexSrc = extractYandexMusicEmbed(msg.text);
   const hasMedia =
     (msg.attachments && msg.attachments.length) || youtubeId || spotify || yandexSrc;
-  const hasWideMedia = (msg.attachments || []).some((att) => {
-    const mime = inferAttachmentMime(att);
-    return mime.startsWith("audio/");
-  });
   const textRaw = msg.action ? `* ${msg.nick} ${msg.text}` : stripEmbedLinks(msg.text);
   const hasText = Boolean(textRaw);
   const mediaOnly = hasMedia && !hasText;
   body.className = "message-body";
   if (hasMedia) body.classList.add("has-media");
-  if (hasWideMedia) body.classList.add("media-stacked");
   if (mediaOnly) body.classList.add("media-only");
   const meta = document.createElement("div");
   meta.className = "meta";
@@ -1313,32 +1313,7 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
         img.alt = "attachment";
         img.addEventListener("click", () => openImageViewer(att.data));
         mediaColumn.appendChild(img);
-        return;
       }
-      if (mime.startsWith("audio/")) {
-        const audio = document.createElement("audio");
-        audio.controls = true;
-        audio.src = att.data;
-        audio.preload = "metadata";
-        if (att?.name) audio.setAttribute("data-title", att.name);
-        mediaColumn.appendChild(audio);
-        return;
-      }
-      if (mime.startsWith("video/")) {
-        const video = document.createElement("video");
-        video.controls = true;
-        video.src = att.data;
-        video.preload = "metadata";
-        video.playsInline = true;
-        mediaColumn.appendChild(video);
-        return;
-      }
-      const link = document.createElement("a");
-      link.href = att.data;
-      link.target = "_blank";
-      link.rel = "noopener";
-      link.textContent = att?.name || "attachment";
-      mediaColumn.appendChild(link);
     });
   }
   if (youtubeEmbed) mediaColumn.appendChild(youtubeEmbed);
@@ -1414,16 +1389,7 @@ function updateInlinePreviews() {
       inlinePreviews.appendChild(img);
       return;
     }
-    const chip = document.createElement("div");
-    chip.className = "attachment-chip";
-    const label = document.createElement("span");
-    label.className = "attachment-chip-type";
-    label.textContent = mime.startsWith("audio/") ? "AUDIO" : "VIDEO";
-    const name = document.createElement("span");
-    name.className = "attachment-chip-name";
-    name.textContent = att?.name || "media";
-    chip.append(label, name);
-    inlinePreviews.appendChild(chip);
+    // ignore non-image attachments
   });
 }
 
@@ -1443,10 +1409,6 @@ async function loadState() {
   state.currentRoom = state.rooms[0] || "#test";
   state.maxImageKB = snapshot.settings.max_image_kb;
   state.maxPayloadKB = snapshot.settings.max_payload_kb;
-  state.maxAudioMB =
-    Number(snapshot.settings.max_audio_mb) || DEFAULT_MAX_AUDIO_MB;
-  state.maxVideoMB =
-    Number(snapshot.settings.max_video_mb) || DEFAULT_MAX_VIDEO_MB;
 
   if (nickInput) nickInput.value = snapshot.settings.nick;
   if (maxImageInput) maxImageInput.value = snapshot.settings.max_image_kb;
@@ -1487,6 +1449,7 @@ async function loadRoomMessages(room) {
 
 async function connectRelays() {
   setStatus("Supabase connected");
+  showStatusBanner("Supabase connected");
   showToast("Connected to Supabase.", "info", 2500);
 }
 
@@ -1671,18 +1634,6 @@ function isImageFile(file) {
   return file?.type?.startsWith("image/");
 }
 
-function isAudioFile(file) {
-  const name = (file?.name || "").toLowerCase();
-  const type = (file?.type || "").toLowerCase();
-  return type.startsWith("audio/") || name.endsWith(".mp3");
-}
-
-function isVideoFile(file) {
-  const name = (file?.name || "").toLowerCase();
-  const type = (file?.type || "").toLowerCase();
-  return type.startsWith("video/") || name.endsWith(".mp4");
-}
-
 function sanitizeFilename(name, fallback = "file") {
   const safe = String(name || fallback).trim() || fallback;
   return safe.replace(/[^\w.-]+/g, "_");
@@ -1696,22 +1647,9 @@ function inferAttachmentMime(att) {
   const raw = String(att?.mime || "").toLowerCase();
   if (raw) return raw;
   const name = String(att?.name || "").toLowerCase();
-  if (name.endsWith(".mp3")) return "audio/mpeg";
-  if (name.endsWith(".mp4")) return "video/mp4";
   const data = String(att?.data || "");
-  if (data.startsWith("data:audio/")) return data.slice(5, data.indexOf(";"));
-  if (data.startsWith("data:video/")) return data.slice(5, data.indexOf(";"));
   if (data.startsWith("data:image/")) return data.slice(5, data.indexOf(";"));
   return "";
-}
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error || new Error("Failed to read file."));
-    reader.readAsDataURL(file);
-  });
 }
 
 async function uploadImageToSupabase(dataUrl, filename) {
@@ -1778,11 +1716,11 @@ async function handleFiles(files) {
       break;
     }
     try {
-      if (isImageFile(file)) {
-        const att = await processImage(file, 1280, state.maxImageKB);
-        if (state.settings.supabase_upload) {
-          setStatus("Uploading image...");
-          const url = await uploadImageToSupabase(att.data, file.name || "image");
+    if (isImageFile(file)) {
+      const att = await processImage(file, 1280, state.maxImageKB);
+      if (state.settings.supabase_upload) {
+        setStatus("Uploading image...");
+        const url = await uploadImageToSupabase(att.data, file.name || "image");
           state.attachments.push({
             kind: "link",
             mime: att.mime,
@@ -1799,54 +1737,10 @@ async function handleFiles(files) {
             name: file.name || "image.webp"
           });
         }
-        updateInlinePreviews();
-        continue;
-      }
-
-      if (isAudioFile(file) || isVideoFile(file)) {
-        const isAudio = isAudioFile(file);
-        const limitMb = isAudio ? state.maxAudioMB : state.maxVideoMB;
-        if (toMB(file.size) > limitMb) {
-          throw new Error(
-            `${isAudio ? "MP3" : "MP4"} exceeds ${limitMb}MB limit.`
-          );
-        }
-        if (toMB(file.size) <= INLINE_MEDIA_MAX_MB) {
-          setStatus(`Attaching ${isAudio ? "audio" : "video"}...`);
-          const dataUrl = await readFileAsDataUrl(file);
-          state.attachments.push({
-            kind: "inline",
-            mime: file.type || (isAudio ? "audio/mpeg" : "video/mp4"),
-            data: dataUrl,
-            size: file.size,
-            name: file.name || (isAudio ? "audio.mp3" : "video.mp4")
-          });
-          setStatus(`${isAudio ? "Audio" : "Video"} attached.`);
-          updateInlinePreviews();
-          continue;
-        }
-
-        if (state.settings.supabase_upload) {
-          setStatus(`Uploading ${isAudio ? "audio" : "video"}...`);
-          const url = await uploadFileToSupabase(file);
-          state.attachments.push({
-            kind: "link",
-            mime: file.type || (isAudio ? "audio/mpeg" : "video/mp4"),
-            data: url,
-            size: file.size,
-            name: file.name || (isAudio ? "audio.mp3" : "video.mp4")
-          });
-          setStatus(`${isAudio ? "Audio" : "Video"} uploaded.`);
-          updateInlinePreviews();
-          continue;
-        }
-
-        throw new Error(
-          `${isAudio ? "MP3" : "MP4"} exceeds inline ${INLINE_MEDIA_MAX_MB}MB limit. Enable Supabase upload to send larger files.`
-        );
-      }
-
-      setStatus("Only images, mp3, and mp4 are supported.");
+      updateInlinePreviews();
+      continue;
+    }
+    setStatus("Only images are supported.");
     } catch (err) {
       setStatus(String(err));
     }
@@ -1867,7 +1761,7 @@ async function saveSettings({ close = true } = {}) {
   const nextImageKb = Number(maxImageInput?.value) || state.maxImageKB;
   const nextPayloadKb = Number(maxPayloadInput?.value) || state.maxPayloadKB;
   state.settings.max_image_kb = Math.max(20, Math.min(300, nextImageKb));
-  state.settings.max_payload_kb = Math.max(60, Math.min(MAX_PAYLOAD_KB, nextPayloadKb));
+  state.settings.max_payload_kb = Math.max(60, Math.min(8000, nextPayloadKb));
   state.settings.supabase_upload = !!supabaseUploadToggle?.checked;
   state.settings.supabase_url = supabaseUrlInput?.value.trim() || "";
   state.settings.supabase_anon_key = supabaseAnonKeyInput?.value.trim() || "";
