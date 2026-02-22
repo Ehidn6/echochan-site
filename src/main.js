@@ -348,8 +348,8 @@ function defaultSettings() {
     nick: "Anonymous",
     relays: [...DEFAULT_RELAYS],
     rooms: ["#echo"],
-    max_image_kb: 40,
-    max_payload_kb: 80,
+    max_image_kb: 200,
+    max_payload_kb: 300,
     supabase_upload: false,
     supabase_url: "",
     supabase_anon_key: "",
@@ -1705,6 +1705,7 @@ async function loadState() {
   state.isAtBottom = true;
   updateJumpButton();
   startRelayPolling();
+  startMessagePolling();
 }
 
 function startRelayPolling() {
@@ -2172,8 +2173,8 @@ async function saveSettings({ close = true } = {}) {
   if (relayInput) relayInput.value = relays.join("\n");
   const nextImageKb = Number(maxImageInput?.value) || state.maxImageKB;
   const nextPayloadKb = Number(maxPayloadInput?.value) || state.maxPayloadKB;
-  state.settings.max_image_kb = Math.max(20, Math.min(80, nextImageKb));
-  state.settings.max_payload_kb = Math.max(60, Math.min(200, nextPayloadKb));
+  state.settings.max_image_kb = Math.max(20, Math.min(300, nextImageKb));
+  state.settings.max_payload_kb = Math.max(60, Math.min(450, nextPayloadKb));
   state.settings.supabase_upload = !!supabaseUploadToggle?.checked;
   state.settings.supabase_url = supabaseUrlInput?.value.trim() || "";
   state.settings.supabase_anon_key = supabaseAnonKeyInput?.value.trim() || "";
