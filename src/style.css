@@ -309,38 +309,17 @@ body.sidebar-open .sidebar-overlay {
   gap: 12px;
   align-items: flex-start;
 }
-.message-body.media-stacked {
-  flex-direction: column;
-}
-.message-body.media-stacked .attachments {
-  width: 100%;
-  flex: 0 0 auto;
-}
-.message-body.media-stacked .attachments audio {
-  width: 320px;
-  max-width: 100%;
-}
 .message-body.media-only {
   display: block;
 }
 .message-body.media-only .attachments {
   width: 100%;
 }
-.message-body.media-only .attachments img,
-.message-body.media-only .attachments video,
-.message-body.media-only .attachments audio {
+.message-body.media-only .attachments img {
   max-width: 100%;
 }
 .message-body.media-only .attachments img {
   max-height: min(52vh, 560px);
-}
-.message-body.media-only .attachments video {
-  width: 100%;
-  aspect-ratio: 21 / 9;
-  max-height: 280px;
-}
-.message-body.media-only .attachments audio {
-  max-width: min(100%, 560px);
 }
 .message-body.media-only .attachments,
 .message-body.media-only .message-content {
@@ -464,17 +443,6 @@ body.sidebar-open .sidebar-overlay {
   max-height: min(36vh, 400px);
   object-fit: contain;
   background: transparent;
-}
-.message .attachments audio,
-.message .attachments video {
-  width: 100%;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: #0b0b0b;
-}
-.message .attachments audio {
-  width: 320px;
-  max-width: 100%;
 }
 .message .attachments a {
   color: var(--text);
@@ -634,6 +602,16 @@ body.sidebar-open .sidebar-overlay {
 .composer textarea::placeholder {
   color: rgba(255, 255, 255, 0.45);
 }
+.composer textarea::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+.composer textarea::-moz-placeholder {
+  color: rgba(255, 255, 255, 0.45);
+  opacity: 1;
+}
+.composer textarea:-ms-input-placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
 
 .composer-actions {
   display: grid;
@@ -735,9 +713,6 @@ body.sidebar-open .sidebar-overlay {
   }
   .message .attachments img {
     max-height: min(28vh, 200px);
-  }
-  .message .attachments audio {
-    width: 100%;
   }
   .youtube-embed {
     aspect-ratio: 16 / 9;
