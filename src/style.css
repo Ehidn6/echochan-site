@@ -135,10 +135,17 @@ body.sidebar-collapsed .sidebar {
   padding: 10px 16px 10px 56px;
   border-bottom: 1px solid var(--border);
   background: rgba(17, 17, 17, 0.5);
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease, height 0.2s ease, padding 0.2s ease;
+  overflow: hidden;
 }
 .toolbar.hidden {
-  display: none;
+  transform: translateY(-100%);
+  opacity: 0;
+  height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+  pointer-events: none;
 }
 .room-label { font-weight: 600; }
 .room-label {
