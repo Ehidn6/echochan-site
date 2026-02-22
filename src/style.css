@@ -314,7 +314,9 @@ body.sidebar-open .sidebar-overlay {
   max-height: min(52vh, 560px);
 }
 .message-body.media-only .attachments video {
-  max-height: min(52vh, 520px);
+  width: 100%;
+  aspect-ratio: 21 / 9;
+  max-height: 280px;
 }
 .message-body.media-only .attachments audio {
   max-width: min(100%, 560px);
@@ -448,6 +450,10 @@ body.sidebar-open .sidebar-overlay {
   border-radius: 6px;
   border: 1px solid var(--border);
   background: #0b0b0b;
+}
+.message .attachments audio {
+  width: 320px;
+  max-width: 100%;
 }
 .message .attachments a {
   color: var(--text);
@@ -702,6 +708,9 @@ body.sidebar-open .sidebar-overlay {
   }
   .message .attachments img {
     max-height: min(28vh, 200px);
+  }
+  .message .attachments audio {
+    width: 100%;
   }
   .youtube-embed {
     aspect-ratio: 16 / 9;
