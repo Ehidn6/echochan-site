@@ -299,6 +299,17 @@ body.sidebar-open .sidebar-overlay {
   gap: 12px;
   align-items: flex-start;
 }
+.message-body.media-stacked {
+  flex-direction: column;
+}
+.message-body.media-stacked .attachments {
+  width: 100%;
+  flex: 0 0 auto;
+}
+.message-body.media-stacked .attachments audio {
+  width: 100%;
+  max-width: 100%;
+}
 .message-body.media-only {
   display: block;
 }

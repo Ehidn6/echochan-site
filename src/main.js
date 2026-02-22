@@ -1199,11 +1199,16 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   const yandexSrc = extractYandexMusicEmbed(msg.text);
   const hasMedia =
     (msg.attachments && msg.attachments.length) || youtubeId || spotify || yandexSrc;
+  const hasWideMedia = (msg.attachments || []).some((att) => {
+    const mime = inferAttachmentMime(att);
+    return mime.startsWith("audio/");
+  });
   const textRaw = msg.action ? `* ${msg.nick} ${msg.text}` : stripEmbedLinks(msg.text);
   const hasText = Boolean(textRaw);
   const mediaOnly = hasMedia && !hasText;
   body.className = "message-body";
   if (hasMedia) body.classList.add("has-media");
+  if (hasWideMedia) body.classList.add("media-stacked");
   if (mediaOnly) body.classList.add("media-only");
   const meta = document.createElement("div");
   meta.className = "meta";
