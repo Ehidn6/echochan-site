@@ -208,31 +208,6 @@ body.sidebar-open .sidebar-overlay {
   color: var(--text);
 }
 
-.p2p-inbox {
-  display: none;
-}
-.relay-errors {
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-  background: #140f0f;
-  color: #e5bcbc;
-  font-size: 12px;
-  display: grid;
-  gap: 6px;
-}
-.relay-errors.hidden {
-  display: none;
-}
-.relay-errors .title {
-  font-weight: 600;
-  color: #f0c8c8;
-}
-.relay-errors .item {
-  border: 1px solid rgba(200, 90, 90, 0.5);
-  border-radius: 8px;
-  padding: 6px 8px;
-  background: rgba(80, 20, 20, 0.25);
-}
 .toast-stack {
   position: absolute;
   top: 12px;
@@ -258,16 +233,6 @@ body.sidebar-open .sidebar-overlay {
   color: #f0caca;
   background: rgba(60, 16, 16, 0.85);
 }
-.p2p-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border: 1px solid var(--border);
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--panel-2);
-}
-.p2p-card .actions { display: flex; gap: 6px; }
 
 .messages {
   flex: 1;
@@ -834,60 +799,6 @@ button:hover { border-color: var(--accent); }
   border: 1px solid var(--border);
   background: #101010;
   color: var(--text);
-}
-.relay-status-list {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #101010;
-  padding: 8px;
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--muted);
-  min-height: 72px;
-}
-.relay-status-item {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px;
-  align-items: center;
-}
-.relay-status-item button {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 11px;
-}
-.relay-status-item button:hover {
-  color: var(--text);
-  border-color: var(--accent);
-}
-.relay-status-item .error {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  color: #d8a6a6;
-}
-.relay-status-item .state {
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  font-size: 11px;
-  text-transform: capitalize;
-}
-.relay-status-item .state.connected {
-  color: #d6ffd6;
-  border-color: rgba(80, 180, 80, 0.6);
-}
-.relay-status-item .state.error {
-  color: #ffb9b9;
-  border-color: rgba(200, 80, 80, 0.6);
-}
-.relay-status-item .state.reconnecting {
-  color: #ffd7a0;
-  border-color: rgba(200, 140, 60, 0.6);
 }
 .modal-header {
   display: flex;

@@ -1,7 +1,4 @@
 import "./style.css";
-import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex, hexToBytes, utf8ToBytes } from "@noble/hashes/utils";
-import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
 import { createClient } from "@supabase/supabase-js";
 
 const DEFAULT_SUPABASE_URL = "https://nuildqmtkmzcwkgfnqki.supabase.co";
@@ -18,29 +15,15 @@ const state = {
   attachments: [],
   maxImageKB: 300,
   maxPayloadKB: 450,
-  peers: new Map(),
-  sessions: new Map(),
-  pendingOffers: new Map(),
-  lastRelayNotice: "",
-  lastRelayDetail: "",
-  pendingRelayDetail: false,
-  relayPollId: null,
-  relayItems: [],
-  messagePollId: null,
   lastMessageId: new Map(),
-  initialBuffering: false,
-  bufferedMessages: [],
-  bufferTimer: null,
   replyTo: null,
   isAtBottom: true,
   isSending: false
 };
 
-const relayConnections = new Map();
 const messagesByRoom = new Map();
 const seenIds = new Set();
 const messageIndex = new Map();
-let subscriptionId = "echochan-web";
 let supabaseClient = null;
 let supabaseChannel = null;
 
@@ -264,14 +247,8 @@ const invoke = async (cmd, payload = {}) => {
       return removeRoomInternal(payload.room);
     case "get_room_messages":
       return getRoomMessagesInternal(payload.room);
-    case "connect_relays":
-      return connectRelaysInternal();
     case "send_message":
       return sendMessageInternal(payload.message);
-    case "send_signal":
-      return sendSignalInternal(payload.signal);
-    case "check_tor":
-      throw new Error("Tor is not supported in the web build.");
     default:
       throw new Error(`Unknown command: ${cmd}`);
   }
@@ -287,45 +264,23 @@ const currentRoomEl = el("current-room");
 const connectBtn = el("connect-btn");
 const sendBtn = el("send-btn");
 const attachBtn = el("attach-btn");
-const p2pBtn = el("p2p-btn");
 const settingsBtn = el("settings-btn");
 const settingsModal = el("settings-modal");
-const settingsContent = settingsModal?.querySelector(".modal-content");
 const settingsClose = el("settings-close");
 const settingsSave = el("settings-save");
-const relayTest = el("relay-test");
-const relayDefaults = el("relay-defaults");
-const torCheck = el("tor-check");
-const relayPrune = el("relay-prune");
-const relayStatusList = el("relay-status-list");
 const confirmModal = el("confirm-modal");
 const confirmTitle = el("confirm-title");
 const confirmBody = el("confirm-body");
 const confirmOk = el("confirm-ok");
 const confirmCancel = el("confirm-cancel");
 const nickInput = el("nick-input");
-const relayInput = el("relay-input");
-const stunInput = el("stun-input");
-const turnInput = el("turn-input");
-const turnUsernameInput = el("turn-username");
-const turnPasswordInput = el("turn-password");
 const maxImageInput = el("max-image-kb");
 const maxPayloadInput = el("max-payload-kb");
 const supabaseUploadToggle = el("supabase-upload-toggle");
 const supabaseUrlInput = el("supabase-url");
 const supabaseAnonKeyInput = el("supabase-anon-key");
 const supabaseBucketInput = el("supabase-bucket");
-const torToggle = el("tor-toggle");
-const proxyInput = el("proxy-input");
-const maxP2pInput = el("max-p2p-mb");
-const p2pTimeoutInput = el("p2p-timeout");
-const p2pRecentInput = el("p2p-recent-min");
-const p2pMaxSessionsInput = el("p2p-max-sessions");
 const fileInput = el("file-input");
-const p2pFileInput = el("p2p-file-input");
-const targetSelect = el("target-select");
-const p2pInbox = el("p2p-inbox");
-const relayErrors = el("relay-errors");
 const toastStack = el("toast-stack");
 const imageViewer = el("image-viewer");
 const viewerImage = el("viewer-image");
@@ -343,19 +298,11 @@ const npPlay = el("np-play");
 const npStop = el("np-stop");
 const npSwitch = el("np-switch");
 
-const CHUNK_SIZE = 16 * 1024;
 const MESSAGE_MIN_HEIGHT = 44;
 const MESSAGE_MAX_HEIGHT = 220;
 const MESSAGE_FLOW_REVERSE = false;
-const P2P_ENABLED = false;
 
 let confirmResolver = null;
-const DEFAULT_RELAYS = [
-  "wss://nos.lol",
-  "wss://relay.damus.io",
-  "wss://nostr.oxtr.dev",
-  "wss://www.nostr.ltd"
-];
 
 function showToast(text, variant = "info", timeoutMs = 6000) {
   if (!text) return;
@@ -368,18 +315,6 @@ function showToast(text, variant = "info", timeoutMs = 6000) {
   }, timeoutMs);
 }
 
-function sanitizeRelayLines(lines) {
-  const out = [];
-  for (const line of lines) {
-    const trimmed = String(line || "").trim();
-    if (!trimmed) continue;
-    const first = trimmed.split(/\s+/)[0];
-    const cleaned = first.replace(/[;,]+$/, "");
-    if (!cleaned.startsWith("wss://")) continue;
-    out.push(cleaned);
-  }
-  return out;
-}
 
 function normalizeRoom(room) {
   const trimmed = String(room || "").trim();
@@ -403,46 +338,14 @@ function normalizeRooms(list) {
 function defaultSettings() {
   return {
     nick: "Anonymous",
-    relays: [...DEFAULT_RELAYS],
     rooms: ["#echo"],
     max_image_kb: 200,
     max_payload_kb: 300,
     supabase_upload: false,
     supabase_url: DEFAULT_SUPABASE_URL,
     supabase_anon_key: DEFAULT_SUPABASE_ANON_KEY,
-    supabase_bucket: "echochan-images",
-    stun_urls: ["stun:stun.l.google.com:19302"],
-    turn_urls: [],
-    turn_username: "",
-    turn_password: "",
-    max_p2p_mb: 5,
-    p2p_timeout_sec: 15,
-    p2p_recent_minutes: 10,
-    p2p_max_sessions: 2,
-    nostr_pubkey: "",
-    nostr_privkey: "",
-    client_id: "",
-    use_tor: false,
-    proxy_url: ""
+    supabase_bucket: "echochan-images"
   };
-}
-
-function generateKeys() {
-  const priv = secp256k1.utils.randomPrivateKey();
-  const pub = schnorr.getPublicKey(priv);
-  return {
-    priv: bytesToHex(priv),
-    pub: bytesToHex(pub)
-  };
-}
-
-function ensureKeys(settings) {
-  if (!settings.nostr_privkey || !settings.nostr_pubkey) {
-    const keys = generateKeys();
-    settings.nostr_privkey = keys.priv;
-    settings.nostr_pubkey = keys.pub;
-  }
-  settings.client_id = settings.nostr_pubkey;
 }
 
 function loadSettingsFromStorage() {
@@ -455,20 +358,13 @@ function loadSettingsFromStorage() {
       settings = defaultSettings();
     }
   }
-  settings.relays = sanitizeRelayLines(settings.relays || []);
   settings.rooms = normalizeRooms(settings.rooms || []);
   if (!settings.rooms.length) settings.rooms = ["#echo"];
-  ensureKeys(settings);
   return settings;
 }
 
 function saveSettingsToStorage(settings) {
   localStorage.setItem("echochan_settings", JSON.stringify(settings));
-}
-
-function buildSubscriptionId(pubkey) {
-  const suffix = (pubkey || "").slice(0, 8);
-  return `echochan-${suffix || "web"}`;
 }
 
 function getCreatedAtSec(msg) {
@@ -477,13 +373,11 @@ function getCreatedAtSec(msg) {
   return ts ? Math.floor(ts / 1000) : 0;
 }
 
-function computeMessageId(msg) {
-  const attachmentsJson = JSON.stringify(msg.attachments || []);
-  const replyJson = JSON.stringify(msg.reply || null);
-  const createdAtSec = getCreatedAtSec(msg);
-  const input = `${msg.room}${msg.nick}${createdAtSec}${msg.text}${attachmentsJson}${replyJson}`;
-  const hash = sha256(utf8ToBytes(input));
-  return bytesToHex(hash);
+function computeMessageId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `msg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
 function getSortKeySec(msg) {
@@ -712,53 +606,6 @@ function recomputeGrouping(wrapper) {
   setMetaVisibility(wrapper, !(sameAuthor && sameDay));
 }
 
-function startInitialBuffer() {
-  state.initialBuffering = true;
-  state.bufferedMessages = [];
-  if (state.bufferTimer) clearTimeout(state.bufferTimer);
-  state.bufferTimer = setTimeout(() => flushInitialBuffer(), 800);
-}
-
-function normalizeIncomingMessage(msg) {
-  if (!msg) return null;
-  if (!msg.id) msg.id = computeMessageId(msg);
-  if (!msg.createdAtSec) msg.createdAtSec = getCreatedAtSec(msg);
-  if (!msg.receivedAtMs) msg.receivedAtMs = nowMs();
-  if (seenIds.has(msg.id)) return null;
-  seenIds.add(msg.id);
-  return msg;
-}
-
-function flushInitialBuffer() {
-  state.initialBuffering = false;
-  const buffer = state.bufferedMessages || [];
-  state.bufferedMessages = [];
-  if (!buffer.length) {
-    updateJumpButton();
-    return;
-  }
-  buffer.sort(compareMessages);
-  const shouldAutoScroll = isMessagesAtBottom();
-  const currentRoom = state.currentRoom;
-  buffer.forEach((msg) => {
-    const list = messagesByRoom.get(msg.room) || [];
-    list.push(msg);
-    list.sort(compareMessages);
-    if (list.length > 500) {
-      const removed = list.shift();
-      if (removed?.id) messageIndex.delete(removed.id);
-    }
-    messagesByRoom.set(msg.room, list);
-    if (msg?.id) messageIndex.set(msg.id, msg);
-    state.roomCounts[msg.room] = list.length;
-    if (msg.room === currentRoom) {
-      addMessageToDom(msg, { sorted: true });
-    }
-  });
-  renderRooms();
-  if (shouldAutoScroll) scrollMessagesToLatest(true);
-}
-
 function updateNowPlaying() {
   if (!nowPlaying) return;
   const current = audioManager.getCurrent();
@@ -877,149 +724,8 @@ function registerExternalEmbed(iframe, { type, title } = {}) {
   });
 }
 
-function nostrEventId(pubkey, createdAt, kind, tags, content) {
-  const payload = JSON.stringify([0, pubkey, createdAt, kind, tags, content]);
-  const hash = sha256(utf8ToBytes(payload));
-  return bytesToHex(hash);
-}
-
-async function buildNostrEvent(settings, kind, tags, content, createdAtSec) {
-  const pubkey = settings.nostr_pubkey;
-  const id = nostrEventId(pubkey, createdAtSec, kind, tags, content);
-  const sigBytes = await schnorr.sign(hexToBytes(id), hexToBytes(settings.nostr_privkey));
-  const sig = bytesToHex(sigBytes);
-  return {
-    id,
-    pubkey,
-    created_at: createdAtSec,
-    kind,
-    tags,
-    content,
-    sig
-  };
-}
-
-function roomTag(room) {
-  return room.trim().replace(/^#/, "");
-}
-
-function buildSubscriptionRequest() {
-  const rooms = state.settings.rooms || [];
-  const tagValues = rooms.map((r) => roomTag(r));
-  if (!tagValues.length) return null;
-  const filter = { kinds: [1, 42], "#t": tagValues };
-  return JSON.stringify(["REQ", subscriptionId, filter]);
-}
-
-function buildCloseRequest() {
-  return JSON.stringify(["CLOSE", subscriptionId]);
-}
-
-function updateRelaySummaryFromState() {
-  const items = Array.from(relayConnections.values()).map((relay) => ({
-    url: relay.url,
-    state: relay.status,
-    last_error: relay.lastError || null
-  }));
-  const connected = items.filter((i) => i.state === "connected").length;
-  const errors = items.filter((i) => i.state === "error").length;
-  const summary = {
-    total: items.length,
-    connected,
-    errors,
-    items
-  };
-  emitEvent("relay-status", summary);
-  return summary;
-}
-
-function connectAllRelays() {
-  const nextRelays = sanitizeRelayLines(state.settings.relays || []);
-  const keep = new Set(nextRelays);
-  for (const [url, relay] of relayConnections.entries()) {
-    if (!keep.has(url)) {
-      relay.ws?.close();
-      relayConnections.delete(url);
-    }
-  }
-  for (const url of nextRelays) {
-    if (!relayConnections.has(url)) {
-      relayConnections.set(url, {
-        url,
-        status: "connecting",
-        lastError: null,
-        backoff: 1000,
-        ws: null,
-        timer: null
-      });
-    }
-    connectRelay(url);
-  }
-  return updateRelaySummaryFromState();
-}
-
-function connectRelay(url) {
-  const relay = relayConnections.get(url);
-  if (!relay) return;
-  if (relay.ws && (relay.ws.readyState === WebSocket.OPEN || relay.ws.readyState === WebSocket.CONNECTING)) {
-    return;
-  }
-  relay.status = "connecting";
-  relay.lastError = null;
-  updateRelaySummaryFromState();
-  try {
-    const ws = new WebSocket(url);
-    relay.ws = ws;
-    ws.onopen = () => {
-      relay.status = "connected";
-      relay.lastError = null;
-      relay.backoff = 1000;
-      const req = buildSubscriptionRequest();
-      if (req) ws.send(req);
-      updateRelaySummaryFromState();
-    };
-    ws.onmessage = (event) => {
-      if (typeof event.data === "string") {
-        handleIncoming(event.data, url);
-      }
-    };
-    ws.onerror = () => {
-      relay.status = "error";
-      relay.lastError = relay.lastError || "WebSocket error";
-      updateRelaySummaryFromState();
-    };
-    ws.onclose = () => {
-      relay.status = "reconnecting";
-      updateRelaySummaryFromState();
-      const delay = Math.min(relay.backoff, 30000);
-      relay.backoff = Math.min(relay.backoff * 2, 30000);
-      clearTimeout(relay.timer);
-      relay.timer = setTimeout(() => connectRelay(url), delay);
-    };
-  } catch (err) {
-    relay.status = "error";
-    relay.lastError = String(err);
-    updateRelaySummaryFromState();
-  }
-}
-
-function broadcastPayload(payload) {
-  relayConnections.forEach((relay) => {
-    if (relay.ws && relay.ws.readyState === WebSocket.OPEN) {
-      relay.ws.send(payload);
-    }
-  });
-}
-
 function resubscribeRelays() {
-  if (useSupabase()) {
-    subscribeSupabaseRoom(state.currentRoom);
-    return;
-  }
-  const close = buildCloseRequest();
-  broadcastPayload(close);
-  const req = buildSubscriptionRequest();
-  if (req) broadcastPayload(req);
+  subscribeSupabaseRoom(state.currentRoom);
 }
 
 function subscribeSupabaseRoom(room) {
@@ -1049,102 +755,6 @@ function subscribeSupabaseRoom(room) {
     .subscribe();
 }
 
-function handleIncoming(raw, relayUrl) {
-  let value;
-  try {
-    value = JSON.parse(raw);
-  } catch {
-    return;
-  }
-  if (!Array.isArray(value) || !value.length) return;
-  const kind = value[0];
-  if (kind === "NOTICE") {
-    const msg = value[1] || "";
-    const relay = relayConnections.get(relayUrl);
-    if (relay) {
-      relay.lastError = msg || "NOTICE";
-      relay.status = relay.status === "connected" ? "connected" : "error";
-      updateRelaySummaryFromState();
-    }
-    return;
-  }
-  if (kind === "OK") {
-    const ok = value[2] !== false;
-    if (!ok) {
-      const msg = value[3] || "event rejected";
-      const relay = relayConnections.get(relayUrl);
-      if (relay) {
-        relay.lastError = msg;
-        updateRelaySummaryFromState();
-      }
-    }
-    return;
-  }
-  if (kind !== "EVENT" || value.length < 3) return;
-  const event = value[2];
-  if (!event || (event.kind !== 1 && event.kind !== 42)) return;
-  let content;
-  try {
-    content = JSON.parse(event.content);
-  } catch {
-    return;
-  }
-  if (!content || typeof content !== "object") return;
-  if (content.type === "signal") {
-    const signal = {
-      type: "signal",
-      room: normalizeRoom(content.room || "") || roomFromTags(event.tags),
-      from: content.from || event.pubkey,
-      to: content.to || null,
-      sid: content.sid,
-      kind: content.kind,
-      sdp: content.sdp || null,
-      candidate: content.candidate || null,
-      ts: content.ts || (event.created_at * 1000)
-    };
-    emitEvent("signal-message", signal);
-    return;
-  }
-  if (content.type !== "message") return;
-  const room = normalizeRoom(content.room || "") || roomFromTags(event.tags);
-  if (!room) return;
-  const msg = {
-    type: "message",
-    room,
-    nick: content.nick || `npub:${(event.pubkey || "").slice(0, 8)}`,
-    client_id: content.client_id || event.pubkey,
-    createdAtSec: Number(event.created_at || 0) || Math.floor(Date.now() / 1000),
-    ts: Number(event.created_at || 0) * 1000 || Date.now(),
-    text: content.text || "",
-    attachments: Array.isArray(content.attachments) ? content.attachments : [],
-    id: event.id,
-    action: !!content.action,
-    reply:
-      content.reply && typeof content.reply === "object"
-        ? content.reply
-        : null
-  };
-  msg.receivedAtMs = nowMs();
-  const normalized = normalizeIncomingMessage(msg);
-  if (!normalized) return;
-  if (state.initialBuffering) {
-    state.bufferedMessages.push(normalized);
-    return;
-  }
-  if (insertMessage(normalized)) {
-    emitEvent("new-message", normalized);
-  }
-}
-
-function roomFromTags(tags = []) {
-  for (const tag of tags) {
-    if (tag && tag[0] === "t" && tag[1]) {
-      return normalizeRoom(tag[1]);
-    }
-  }
-  return "";
-}
-
 function insertMessage(msg) {
   if (!msg) return false;
   if (!msg.id) msg.id = computeMessageId(msg);
@@ -1171,19 +781,15 @@ async function getStateSnapshot() {
   });
   return {
     settings: state.settings,
-    counts,
-    relay_summary: updateRelaySummaryFromState()
+    counts
   };
 }
 
 async function saveSettingsInternal(settings) {
   const next = { ...state.settings, ...settings };
-  next.relays = sanitizeRelayLines(next.relays || []);
   next.rooms = normalizeRooms(next.rooms || []);
   if (!next.rooms.length) next.rooms = ["#echo"];
-  ensureKeys(next);
   state.settings = next;
-  subscriptionId = buildSubscriptionId(next.nostr_pubkey);
   saveSettingsToStorage(next);
   resubscribeRelays();
 }
@@ -1227,83 +833,26 @@ async function getRoomMessagesInternal(room) {
     .filter(Boolean);
 }
 
-async function connectRelaysInternal() {
-  if (useSupabase()) {
-    return { total: 1, connected: 1, errors: 0, items: [] };
-  }
-  return connectAllRelays();
-}
-
 async function sendMessageInternal(message) {
-  if (useSupabase()) {
-    if (message.attachments?.length > 2) {
-      throw new Error("Only 2 inline images allowed.");
-    }
-    const room = normalizeRoom(message.room);
-    const client = getSupabaseClient();
-    const row = {
-      room,
-      nick: message.nick || "Anonymous",
-      text: message.text || "",
-      attachments: message.attachments || [],
-      reply: message.reply || null,
-      action: !!message.action
-    };
-    const { data, error } = await client.from("messages").insert(row).select().single();
-    if (error) throw new Error(error.message);
-    return supabaseRowToMessage(data);
+  if (!useSupabase()) {
+    throw new Error("Supabase is not configured.");
   }
   if (message.attachments?.length > 2) {
     throw new Error("Only 2 inline images allowed.");
   }
   const room = normalizeRoom(message.room);
-  const createdAtSec = Math.floor(Date.now() / 1000);
-  const msg = {
+  const client = getSupabaseClient();
+  const row = {
     room,
-    type: "message",
     nick: message.nick || "Anonymous",
-    client_id: state.settings.nostr_pubkey,
-    createdAtSec,
-    ts: createdAtSec * 1000,
     text: message.text || "",
     attachments: message.attachments || [],
-    id: "",
-    action: !!message.action,
-    reply: message.reply || null
+    reply: message.reply || null,
+    action: !!message.action
   };
-  msg.id = computeMessageId(msg);
-  const content = JSON.stringify(msg);
-  const tags = [["t", roomTag(room)]];
-  const event = await buildNostrEvent(state.settings, 1, tags, content, createdAtSec);
-  msg.id = event.id;
-  msg.receivedAtMs = nowMs();
-  const payload = JSON.stringify(["EVENT", event]);
-  if (payload.length > (state.settings.max_payload_kb || 450) * 1024) {
-    throw new Error("Payload exceeds max_payload_kb limit.");
-  }
-  if (insertMessage(msg)) {
-    broadcastPayload(payload);
-  }
-  return msg;
-}
-
-async function sendSignalInternal(signal) {
-  const msg = {
-    type: "signal",
-    room: normalizeRoom(signal.room),
-    from: signal.from || state.settings.nostr_pubkey,
-    to: signal.to || null,
-    sid: signal.sid,
-    kind: signal.kind,
-    sdp: signal.sdp || null,
-    candidate: signal.candidate || null,
-    ts: Date.now()
-  };
-  const content = JSON.stringify(msg);
-  const tags = [["t", roomTag(msg.room)]];
-  const event = await buildNostrEvent(state.settings, 1, tags, content, Math.floor(msg.ts / 1000));
-  const payload = JSON.stringify(["EVENT", event]);
-  broadcastPayload(payload);
+  const { data, error } = await client.from("messages").insert(row).select().single();
+  if (error) throw new Error(error.message);
+  return supabaseRowToMessage(data);
 }
 
 function nowMs() {
@@ -1473,22 +1022,6 @@ function renderRooms() {
     });
     roomListEl.appendChild(row);
   });
-}
-
-function renderTargetSelect() {
-  if (!targetSelect) return;
-  targetSelect.innerHTML = "";
-  const option = document.createElement("option");
-  option.value = "";
-  option.textContent = "All";
-  targetSelect.appendChild(option);
-  const sorted = Array.from(state.peers.values()).sort((a, b) => a.nick.localeCompare(b.nick));
-  for (const peer of sorted) {
-    const opt = document.createElement("option");
-    opt.value = peer.id;
-    opt.textContent = `${peer.nick} · ${peer.id.slice(0, 8)}`;
-    targetSelect.appendChild(opt);
-  }
 }
 
 function renderMessages(list, { autoScroll = true } = {}) {
@@ -1783,7 +1316,6 @@ function estimatePayloadKB(payload) {
 
 async function loadState() {
   state.settings = loadSettingsFromStorage();
-  subscriptionId = buildSubscriptionId(state.settings.nostr_pubkey);
   const snapshot = await invoke("get_state", {});
   state.settings = snapshot.settings;
   const normalizedRooms = normalizeRooms(snapshot.settings.rooms);
@@ -1794,7 +1326,6 @@ async function loadState() {
   state.maxPayloadKB = snapshot.settings.max_payload_kb;
 
   if (nickInput) nickInput.value = snapshot.settings.nick;
-  if (relayInput) relayInput.value = snapshot.settings.relays.join("\n");
   if (maxImageInput) maxImageInput.value = snapshot.settings.max_image_kb;
   if (maxPayloadInput) maxPayloadInput.value = snapshot.settings.max_payload_kb;
   if (supabaseUploadToggle) supabaseUploadToggle.checked = !!snapshot.settings.supabase_upload;
@@ -1806,229 +1337,24 @@ async function loadState() {
       snapshot.settings.supabase_anon_key || DEFAULT_SUPABASE_ANON_KEY || "";
   }
   if (supabaseBucketInput) supabaseBucketInput.value = snapshot.settings.supabase_bucket || "echochan-images";
-  if (stunInput) stunInput.value = snapshot.settings.stun_urls?.join("\n") || "";
-  if (torToggle) torToggle.checked = snapshot.settings.use_tor || false;
-  if (proxyInput) proxyInput.value = snapshot.settings.proxy_url || "";
-  if (turnInput) turnInput.value = snapshot.settings.turn_urls?.join("\n") || "";
-  if (turnUsernameInput) turnUsernameInput.value = snapshot.settings.turn_username || "";
-  if (turnPasswordInput) turnPasswordInput.value = snapshot.settings.turn_password || "";
-  if (maxP2pInput) maxP2pInput.value = snapshot.settings.max_p2p_mb || 5;
-  if (p2pTimeoutInput) p2pTimeoutInput.value = snapshot.settings.p2p_timeout_sec || 15;
-  if (p2pRecentInput) p2pRecentInput.value = snapshot.settings.p2p_recent_minutes || 10;
-  if (p2pMaxSessionsInput) p2pMaxSessionsInput.value = snapshot.settings.p2p_max_sessions || 2;
 
   currentRoomEl.textContent = state.currentRoom;
   renderRooms();
-  if (targetSelect) renderTargetSelect();
   await loadRoomMessages(state.currentRoom);
-  updateRelaySummary(snapshot.relay_summary);
 
   if (JSON.stringify(normalizedRooms) !== JSON.stringify(snapshot.settings.rooms)) {
     state.settings.rooms = normalizedRooms;
     await invoke("save_settings", { settings: state.settings });
   }
-  addSystemMessage(`Relays configured: ${state.settings.relays.length}`);
   updateReplyBar();
   state.isAtBottom = true;
   updateJumpButton();
-  startRelayPolling();
-  startMessagePolling();
-}
-
-function startRelayPolling() {
-  if (state.relayPollId) return;
-  state.relayPollId = setInterval(async () => {
-    try {
-      const snapshot = await invoke("get_state", {});
-      if (snapshot && snapshot.relay_summary) {
-        updateRelaySummary(snapshot.relay_summary);
-      }
-    } catch {
-      // ignore poll errors
-    }
-  }, 4000);
-}
-
-function startMessagePolling() {
-  if (useSupabase()) return;
-  if (state.messagePollId) return;
-  state.messagePollId = setInterval(async () => {
-    if (!state.currentRoom) return;
-    try {
-      const list = await invoke("get_room_messages", { room: state.currentRoom });
-      if (!list.length) return;
-      const newItems = [];
-      for (const msg of list) {
-        if (!msg?.id) continue;
-        if (seenIds.has(msg.id)) continue;
-        msg.receivedAtMs = msg.receivedAtMs || nowMs();
-        seenIds.add(msg.id);
-        newItems.push(msg);
-      }
-      if (!newItems.length) return;
-      newItems.sort(compareMessages);
-      const shouldAutoScroll = isMessagesAtBottom();
-      newItems.forEach((msg) => {
-        msg.createdAtSec = msg.createdAtSec || getCreatedAtSec(msg);
-        msg.receivedAtMs = msg.receivedAtMs || nowMs();
-        const listForRoom = messagesByRoom.get(msg.room) || [];
-        listForRoom.push(msg);
-        listForRoom.sort(compareMessages);
-        if (listForRoom.length > 500) {
-          const removed = listForRoom.shift();
-          if (removed?.id) messageIndex.delete(removed.id);
-        }
-        messagesByRoom.set(msg.room, listForRoom);
-        if (msg?.id) messageIndex.set(msg.id, msg);
-        state.roomCounts[msg.room] = listForRoom.length;
-        if (msg.room === state.currentRoom) {
-          addMessageToDom(msg, { sorted: true });
-        }
-      });
-      state.roomCounts[state.currentRoom] = list.length;
-      const last = list[list.length - 1];
-      if (last?.id) state.lastMessageId.set(state.currentRoom, last.id);
-      syncPeers(newItems);
-      renderRooms();
-      if (shouldAutoScroll) scrollMessagesToLatest(true);
-    } catch {
-      // ignore polling errors
-    }
-  }, 2000);
-}
-
-function updateRelaySummary(summary) {
-  if (!summary) return;
-  const total = summary.total ?? (summary.items ? summary.items.length : 0);
-  const connected = summary.connected ?? 0;
-  const errors = summary.errors ?? 0;
-  state.relayItems = summary.items || [];
-  if (total > 0 && connected === 0 && errors === 0) {
-    setStatus(`Connecting to ${total} relays...`);
-  } else if (connected > 0) {
-    setStatus(`Connected to ${connected}/${total} relays, ${errors} errors`);
-  } else {
-    setStatus(`Connected to 0 relays, ${errors} errors`);
-  }
-  renderRelayStatusList(summary.items || []);
-  renderRelayErrors(summary.items || []);
-  emitRelayNotice(summary);
-  if (state.pendingRelayDetail) {
-    emitRelayDetail(summary);
-  }
-}
-
-function emitRelayNotice(summary) {
-  const parts = [];
-  if (summary.total === 0) {
-    parts.push("No relays configured. Open Settings and add wss:// relays.");
-  } else if (summary.connected === 0) {
-    parts.push("No relay connections yet. Check relay errors in Settings.");
-  }
-  const errorItems = (summary.items || []).filter((item) => item.last_error);
-  if (errorItems.length) {
-    for (const item of errorItems) {
-      if (item.last_error) {
-        parts.push(`${item.url} error: ${item.last_error}`);
-      } else {
-        parts.push(`${item.url} error`);
-      }
-    }
-  }
-  if (!parts.length) return;
-  const message = parts.join(" ");
-  if (message === state.lastRelayNotice) return;
-  state.lastRelayNotice = message;
-  showToast(message, "error");
-}
-
-function emitRelayDetail(summary) {
-  const items = summary.items || [];
-  if (!items.length) return;
-  const lines = items.map((item) => {
-    if (item.last_error) {
-      return `${item.state}: ${item.url} (${item.last_error})`;
-    }
-    return `${item.state}: ${item.url}`;
-  });
-  const message = `Relay status: ${lines.join(" | ")}`;
-  if (message === state.lastRelayDetail) return;
-  state.lastRelayDetail = message;
-  showToast(message, "info", 5000);
-  state.pendingRelayDetail = false;
-}
-
-function renderRelayStatusList(items) {
-  const preserveScroll =
-    settingsContent && !settingsModal.classList.contains("hidden");
-  const prevScrollTop = preserveScroll ? settingsContent.scrollTop : 0;
-  if (!relayStatusList) return;
-  relayStatusList.innerHTML = "";
-  if (!items.length) {
-    const empty = document.createElement("div");
-    empty.textContent = "No relay status yet. Click Test relays.";
-  relayStatusList.appendChild(empty);
-    if (preserveScroll) settingsContent.scrollTop = prevScrollTop;
-    return;
-  }
-  items.forEach((item) => {
-    const row = document.createElement("div");
-    row.className = "relay-status-item";
-    const url = document.createElement("div");
-    url.textContent = item.url;
-    const stateBadge = document.createElement("div");
-    stateBadge.className = `state ${item.state}`;
-    stateBadge.textContent = item.state;
-    const remove = document.createElement("button");
-    remove.textContent = "Remove";
-    remove.addEventListener("click", async () => {
-      const next = state.settings.relays.filter((r) => r !== item.url);
-      if (!next.length) {
-        setStatus("At least one relay must remain.");
-        return;
-      }
-      relayInput.value = next.join("\n");
-      await saveSettings({ close: false });
-    });
-    row.append(url, stateBadge, remove);
-    if (item.last_error) {
-      const err = document.createElement("div");
-      err.className = "error";
-      err.textContent = item.last_error;
-      row.appendChild(err);
-    }
-    relayStatusList.appendChild(row);
-  });
-  if (preserveScroll) settingsContent.scrollTop = prevScrollTop;
-}
-
-function renderRelayErrors(items) {
-  const errorItems = items.filter((item) => item.last_error);
-  relayErrors.innerHTML = "";
-  if (!errorItems.length) {
-    relayErrors.classList.add("hidden");
-    return;
-  }
-  relayErrors.classList.remove("hidden");
-  const title = document.createElement("div");
-  title.className = "title";
-  title.textContent = "Relay errors";
-  relayErrors.appendChild(title);
-  errorItems.forEach((item) => {
-    const line = document.createElement("div");
-    line.className = "item";
-    line.textContent = item.last_error
-      ? `${item.url} — ${item.last_error}`
-      : `${item.url} — error`;
-    relayErrors.appendChild(line);
-  });
 }
 
 async function loadRoomMessages(room) {
   const list = await invoke("get_room_messages", { room });
   state.roomCounts[room] = list.length;
   renderMessages(list);
-  syncPeers(list);
   renderRooms();
   if (useSupabase()) {
     subscribeSupabaseRoom(room);
@@ -2036,34 +1362,8 @@ async function loadRoomMessages(room) {
 }
 
 async function connectRelays() {
-  if (useSupabase()) {
-    setStatus("Supabase connected");
-    showToast("Connected to Supabase.", "info", 2500);
-    return;
-  }
-  setStatus("Connecting...");
-  showToast("Connecting to relays...", "info", 3000);
-  startInitialBuffer();
-  if (state.settings?.use_tor) {
-    const proxy = state.settings.proxy_url || "socks5://127.0.0.1:9150";
-    showToast(`Using SOCKS5 proxy: ${proxy}`, "info", 4000);
-  }
-  state.pendingRelayDetail = true;
-  try {
-    const summary = await invoke("connect_relays", {});
-    updateRelaySummary(summary);
-    const total = summary.total ?? (summary.items ? summary.items.length : 0);
-    const connected = summary.connected ?? 0;
-    const errors = summary.errors ?? 0;
-    if (total > 0 && connected === 0 && errors === 0) {
-      showToast(`Connecting to chat...`, "info", 3000);
-    } else {
-      showToast(`Connected to chat.`, "info", 3000);
-    }
-  } catch (err) {
-    setStatus(String(err));
-    showToast(String(err), "error", 5000);
-  }
+  setStatus("Supabase connected");
+  showToast("Connected to Supabase.", "info", 2500);
 }
 
 async function handleCommand(text) {
@@ -2303,18 +1603,7 @@ function closeSettings() {
 }
 
 async function saveSettings({ close = true } = {}) {
-  const relays = sanitizeRelayLines((relayInput?.value || "").split("\n"));
-  const stunUrls = (stunInput?.value || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length);
-  const turnUrls = (turnInput?.value || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length);
   state.settings.nick = nickInput?.value.trim() || state.settings.nick;
-  state.settings.relays = relays;
-  if (relayInput) relayInput.value = relays.join("\n");
   const nextImageKb = Number(maxImageInput?.value) || state.maxImageKB;
   const nextPayloadKb = Number(maxPayloadInput?.value) || state.maxPayloadKB;
   state.settings.max_image_kb = Math.max(20, Math.min(300, nextImageKb));
@@ -2325,16 +1614,6 @@ async function saveSettings({ close = true } = {}) {
   state.settings.supabase_bucket = supabaseBucketInput?.value.trim() || "echochan-images";
   if (maxImageInput) maxImageInput.value = String(state.settings.max_image_kb);
   if (maxPayloadInput) maxPayloadInput.value = String(state.settings.max_payload_kb);
-  state.settings.stun_urls = stunUrls;
-  state.settings.use_tor = torToggle?.checked || false;
-  state.settings.proxy_url = proxyInput?.value.trim() || "";
-  state.settings.turn_urls = turnUrls;
-  state.settings.turn_username = turnUsernameInput?.value || "";
-  state.settings.turn_password = turnPasswordInput?.value || "";
-  state.settings.max_p2p_mb = Number(maxP2pInput?.value) || 5;
-  state.settings.p2p_timeout_sec = Number(p2pTimeoutInput?.value) || 15;
-  state.settings.p2p_recent_minutes = Number(p2pRecentInput?.value) || 10;
-  state.settings.p2p_max_sessions = Number(p2pMaxSessionsInput?.value) || 2;
   state.maxImageKB = state.settings.max_image_kb;
   state.maxPayloadKB = state.settings.max_payload_kb;
   await invoke("save_settings", { settings: state.settings });
@@ -2352,318 +1631,7 @@ async function saveNickImmediate() {
   await invoke("save_settings", { settings: state.settings });
 }
 
-function buildRtcConfig() {
-  const iceServers = [];
-  if (state.settings.stun_urls && state.settings.stun_urls.length) {
-    iceServers.push({ urls: state.settings.stun_urls });
-  }
-  if (state.settings.turn_urls && state.settings.turn_urls.length) {
-    iceServers.push({
-      urls: state.settings.turn_urls,
-      username: state.settings.turn_username || undefined,
-      credential: state.settings.turn_password || undefined
-    });
-  }
-  return { iceServers };
-}
 
-function activeSessionsCount() {
-  return state.sessions.size;
-}
-
-function isRecentSender(peerId) {
-  const peer = state.peers.get(peerId);
-  if (!peer) return false;
-  const ageMs = nowMs() - peer.lastSeen;
-  return ageMs <= (state.settings.p2p_recent_minutes || 10) * 60 * 1000;
-}
-
-function syncPeers(messages) {
-  if (!targetSelect) return;
-  for (const msg of messages) {
-    if (!msg.client_id) continue;
-    const id = msg.client_id;
-    const existing = state.peers.get(id);
-    const nick = msg.nick || id.slice(0, 8);
-    const lastSeen = (msg.createdAtSec || getCreatedAtSec(msg)) * 1000 || nowMs();
-    if (!existing || existing.lastSeen < lastSeen) {
-      state.peers.set(id, { id, nick, lastSeen });
-    }
-  }
-  renderTargetSelect();
-}
-
-function createSession(sid, mode) {
-  const timeoutSec = state.settings.p2p_timeout_sec || 15;
-  const session = {
-    sid,
-    mode,
-    pc: null,
-    dc: null,
-    meta: null,
-    receivedChunks: [],
-    receivedBytes: 0,
-    expectedSize: 0,
-    timeout: null
-  };
-  session.timeout = setTimeout(() => {
-    endSession(sid, "P2P failed (timeout). Use inline instead.");
-  }, timeoutSec * 1000);
-  state.sessions.set(sid, session);
-  return session;
-}
-
-function endSession(sid, message) {
-  const session = state.sessions.get(sid);
-  if (!session) return;
-  clearTimeout(session.timeout);
-  if (session.dc) session.dc.close();
-  if (session.pc) session.pc.close();
-  state.sessions.delete(sid);
-  if (message) setStatus(message);
-}
-
-async function sendSignal(kind, payload) {
-  const signal = {
-    room: state.currentRoom,
-    from: state.settings.nostr_pubkey || "",
-    to: payload.to || null,
-    sid: payload.sid,
-    kind,
-    sdp: payload.sdp || null,
-    candidate: payload.candidate || null
-  };
-  await invoke("send_signal", { signal });
-}
-
-async function startP2PSend(file) {
-  if (!P2P_ENABLED) {
-    setStatus("P2P is disabled.");
-    return;
-  }
-  if (activeSessionsCount() >= (state.settings.p2p_max_sessions || 2)) {
-    setStatus("P2P session limit reached.");
-    return;
-  }
-  if (file.size > (state.settings.max_p2p_mb || 5) * 1024 * 1024) {
-    setStatus("P2P file too large.");
-    return;
-  }
-
-  const sid = randomId();
-  const session = createSession(sid, "send");
-  const pc = new RTCPeerConnection(buildRtcConfig());
-  session.pc = pc;
-  const dc = pc.createDataChannel("file");
-  session.dc = dc;
-  dc.binaryType = "arraybuffer";
-
-  dc.onopen = async () => {
-    const arrayBuffer = await file.arrayBuffer();
-    const meta = {
-      kind: "file_meta",
-      sid,
-      name: file.name,
-      mime: file.type || "application/octet-stream",
-      size: file.size
-    };
-    dc.send(JSON.stringify(meta));
-    let offset = 0;
-    const buffer = new Uint8Array(arrayBuffer);
-    while (offset < buffer.length) {
-      const chunk = buffer.slice(offset, offset + CHUNK_SIZE);
-      dc.send(chunk);
-      offset += CHUNK_SIZE;
-    }
-  };
-
-  dc.onmessage = (event) => {
-    if (typeof event.data === "string") {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.kind === "file_ack" && msg.sid === sid) {
-          endSession(sid, "P2P transfer completed.");
-        }
-      } catch {
-        return;
-      }
-    }
-  };
-
-  const targetId = targetSelect?.value || null;
-  pc.onicecandidate = async (event) => {
-    if (!event.candidate) return;
-    await sendSignal("ice", {
-      sid,
-      to: targetId,
-      candidate: {
-        candidate: event.candidate.candidate,
-        sdpMid: event.candidate.sdpMid,
-        sdpMLineIndex: event.candidate.sdpMLineIndex
-      }
-    });
-  };
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await sendSignal("offer", {
-    sid,
-    to: targetId,
-    sdp: offer.sdp
-  });
-}
-
-function showOfferCard(signal) {
-  const card = document.createElement("div");
-  card.className = "p2p-card";
-  const label = document.createElement("div");
-  label.textContent = `Incoming P2P image from ${signal.from.slice(0, 8)}`;
-  const actions = document.createElement("div");
-  actions.className = "actions";
-  const accept = document.createElement("button");
-  accept.textContent = "Accept";
-  const decline = document.createElement("button");
-  decline.textContent = "Decline";
-  actions.append(accept, decline);
-  card.append(label, actions);
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "message system";
-  const body = document.createElement("div");
-  body.className = "message-body";
-  body.appendChild(card);
-  wrapper.appendChild(body);
-  messagesEl.appendChild(wrapper);
-  scrollMessagesToLatest();
-
-  accept.addEventListener("click", async () => {
-    wrapper.remove();
-    await acceptOffer(signal);
-  });
-  decline.addEventListener("click", () => {
-    wrapper.remove();
-    endSession(signal.sid, "P2P declined.");
-  });
-}
-
-async function acceptOffer(signal) {
-  if (activeSessionsCount() >= (state.settings.p2p_max_sessions || 2)) {
-    setStatus("P2P session limit reached.");
-    return;
-  }
-  if (!isRecentSender(signal.from)) {
-    const confirmed = await openConfirm({
-      title: "Unverified sender",
-      body: "Sender has not spoken recently in this room. Accept anyway?",
-      okText: "Accept"
-    });
-    if (!confirmed) {
-      endSession(signal.sid, "P2P declined.");
-      return;
-    }
-  }
-
-  const sid = signal.sid;
-  const session = createSession(sid, "recv");
-  const pc = new RTCPeerConnection(buildRtcConfig());
-  session.pc = pc;
-
-  pc.ondatachannel = (event) => {
-    const dc = event.channel;
-    session.dc = dc;
-    dc.binaryType = "arraybuffer";
-    dc.onmessage = (evt) => handleIncomingData(session, signal.from, evt.data);
-  };
-
-  pc.onicecandidate = async (event) => {
-    if (!event.candidate) return;
-    await sendSignal("ice", {
-      sid,
-      to: signal.from,
-      candidate: {
-        candidate: event.candidate.candidate,
-        sdpMid: event.candidate.sdpMid,
-        sdpMLineIndex: event.candidate.sdpMLineIndex
-      }
-    });
-  };
-
-  await pc.setRemoteDescription({ type: "offer", sdp: signal.sdp });
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  await sendSignal("answer", {
-    sid,
-    to: signal.from,
-    sdp: answer.sdp
-  });
-}
-
-function handleIncomingData(session, from, data) {
-  if (typeof data === "string") {
-    try {
-      const meta = JSON.parse(data);
-      if (meta.kind === "file_meta" && meta.sid === session.sid) {
-        session.meta = meta;
-        session.expectedSize = meta.size;
-        if (meta.size > (state.settings.max_p2p_mb || 5) * 1024 * 1024) {
-          endSession(session.sid, "P2P file too large.");
-        }
-      }
-    } catch {
-      return;
-    }
-    return;
-  }
-
-  if (!session.meta) return;
-  const chunk = new Uint8Array(data);
-  session.receivedChunks.push(chunk);
-  session.receivedBytes += chunk.byteLength;
-
-  if (session.receivedBytes >= session.expectedSize) {
-    const blob = new Blob(session.receivedChunks, { type: session.meta.mime });
-    const url = URL.createObjectURL(blob);
-    const message = {
-      nick: from.slice(0, 8),
-      ts: nowMs(),
-      text: "[P2P image]",
-      action: false,
-      attachments: [{ data: url }]
-    };
-    addMessageToDom(message);
-    scrollMessagesToLatest();
-    if (session.dc) {
-      session.dc.send(JSON.stringify({ kind: "file_ack", sid: session.sid, ok: true }));
-    }
-    endSession(session.sid, null);
-  }
-}
-
-async function handleSignal(signal) {
-  if (!P2P_ENABLED) return;
-  if (signal.room !== state.currentRoom) return;
-  if (signal.kind === "offer") {
-    if (state.pendingOffers.has(signal.sid)) return;
-    state.pendingOffers.set(signal.sid, signal);
-    showOfferCard(signal);
-    return;
-  }
-
-  const session = state.sessions.get(signal.sid);
-  if (!session) return;
-
-  if (signal.kind === "answer" && session.pc) {
-    await session.pc.setRemoteDescription({ type: "answer", sdp: signal.sdp });
-    return;
-  }
-  if (signal.kind === "ice" && session.pc && signal.candidate) {
-    try {
-      await session.pc.addIceCandidate(signal.candidate);
-    } catch {
-      return;
-    }
-  }
-}
 
 connectBtn.addEventListener("click", async () => {
   const room = normalizeRoom(commandInput.value);
@@ -2687,41 +1655,6 @@ nickInput?.addEventListener("change", saveNickImmediate);
 settingsModal.addEventListener("click", (evt) => {
   if (evt.target === settingsModal) closeSettings();
 });
-relayTest?.addEventListener("click", async () => {
-  await connectRelays();
-});
-relayDefaults?.addEventListener("click", async () => {
-  if (relayInput) relayInput.value = DEFAULT_RELAYS.join("\n");
-  await saveSettings({ close: false });
-});
-torCheck?.addEventListener("click", async () => {
-  try {
-    const ok = await invoke("check_tor", {});
-    if (ok) {
-      addSystemMessage("Tor proxy is reachable.");
-    } else {
-      addSystemMessage("Tor is disabled. Enable Use Tor to test.");
-    }
-  } catch (err) {
-    addSystemMessage(`Tor check failed: ${String(err)}`);
-  }
-});
-relayPrune?.addEventListener("click", async () => {
-  const bad = new Set(
-    state.relayItems.filter((item) => item.state === "error").map((item) => item.url)
-  );
-  if (!bad.size) {
-    setStatus("No failing relays to remove.");
-    return;
-  }
-  const next = state.settings.relays.filter((r) => !bad.has(r));
-  if (!next.length) {
-    setStatus("All relays would be removed.");
-    return;
-  }
-  relayInput.value = next.join("\n");
-  await saveSettings({ close: false });
-});
 confirmOk.addEventListener("click", () => closeConfirm(true));
 confirmCancel.addEventListener("click", () => closeConfirm(false));
 confirmModal.addEventListener("click", (evt) => {
@@ -2741,18 +1674,6 @@ sidebarOverlay?.addEventListener("click", () => {
   document.body.classList.remove("sidebar-open");
 });
 attachBtn.addEventListener("click", () => fileInput.click());
-
-p2pBtn?.addEventListener("click", () => {
-  p2pFileInput?.click();
-});
-
-p2pFileInput?.addEventListener("change", async (evt) => {
-  const file = evt.target.files?.[0];
-  if (file) {
-    await startP2PSend(file);
-  }
-  p2pFileInput.value = "";
-});
 
 fileInput.addEventListener("change", async (evt) => {
   const files = Array.from(evt.target.files || []);
@@ -2833,17 +1754,8 @@ listen("new-message", (event) => {
       state.isAtBottom = false;
       updateJumpButton();
     }
-    syncPeers([msg]);
   }
   renderRooms();
-});
-
-listen("relay-status", (event) => {
-  updateRelaySummary(event.payload);
-});
-
-listen("signal-message", (event) => {
-  handleSignal(event.payload).catch(() => {});
 });
 
 loadState().then(connectRelays).catch((err) => setStatus(String(err)));

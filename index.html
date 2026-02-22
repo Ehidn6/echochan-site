@@ -15,7 +15,7 @@
           <input id="command-input" type="text" placeholder="Room name" />
           <button id="connect-btn">Create</button>
         </div>
-        <div class="status" id="relay-status">Disconnected</div>
+        <div class="status" id="relay-status">Connected</div>
       </aside>
       <main class="main">
         <header class="toolbar">
@@ -38,7 +38,6 @@
             <button id="settings-btn">Settings</button>
           </div>
         </header>
-        <div id="relay-errors" class="relay-errors hidden"></div>
         <div id="toast-stack" class="toast-stack"></div>
         <section id="messages" class="messages"></section>
         <button id="jump-latest" class="jump-latest hidden" aria-label="Jump to latest">
@@ -96,14 +95,6 @@
           <input id="max-payload-kb" type="number" min="60" max="450" />
         </label>
         <label>
-          Relay URLs (one per line)
-          <textarea id="relay-input"></textarea>
-        </label>
-        <label>
-          Relay status
-          <div id="relay-status-list" class="relay-status-list"></div>
-        </label>
-        <label>
           Supabase image upload
           <input id="supabase-upload-toggle" type="checkbox" />
         </label>
@@ -120,9 +111,6 @@
           <input id="supabase-bucket" type="text" placeholder="echochan-images" />
         </label>
         <div class="modal-actions">
-          <button id="relay-defaults">Use default relays</button>
-          <button id="relay-prune">Remove failing</button>
-          <button id="relay-test">Test relays</button>
           <button id="settings-save">Save</button>
         </div>
       </div>
