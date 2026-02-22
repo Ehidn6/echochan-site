@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Echochan</title>
-    <script type="module" crossorigin src="./assets/index-DWN0CQDC.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CQnh2qeg.css">
+    <script type="module" crossorigin src="./assets/index-4X2vQzEh.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BmzongAl.css">
   </head>
   <body>
     <div id="app">
@@ -32,8 +32,19 @@
         <div id="relay-errors" class="relay-errors hidden"></div>
         <div id="toast-stack" class="toast-stack"></div>
         <section id="messages" class="messages"></section>
+        <button id="jump-latest" class="jump-latest hidden" aria-label="Jump to latest">
+          Jump to latest
+        </button>
         <footer class="composer">
           <div class="composer-inputs">
+            <div id="reply-bar" class="reply-bar hidden">
+              <div class="reply-info">
+                <span class="label">Replying to</span>
+                <span id="reply-nick" class="reply-nick"></span>
+              </div>
+              <div id="reply-snippet" class="reply-snippet"></div>
+              <button id="reply-cancel" class="reply-cancel" aria-label="Cancel reply">×</button>
+            </div>
             <textarea id="message-input" placeholder="Type message or /me action"></textarea>
             <div id="inline-previews" class="inline-previews"></div>
           </div>
