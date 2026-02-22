@@ -305,12 +305,14 @@ const npMeta = el("np-meta");
 const npPlay = el("np-play");
 const npStop = el("np-stop");
 const npSwitch = el("np-switch");
+const toolbar = document.querySelector(".toolbar");
 
 const MESSAGE_MIN_HEIGHT = 44;
 const MESSAGE_MAX_HEIGHT = 220;
 const MESSAGE_FLOW_REVERSE = false;
 
 let confirmResolver = null;
+let lastMessagesScrollTop = 0;
 
 function showToast(text, variant = "info", timeoutMs = 6000) {
   if (!text) return;
@@ -1869,6 +1871,17 @@ messageInput.addEventListener("input", autoResizeTextarea);
 messagesEl.addEventListener("scroll", () => {
   state.isAtBottom = isMessagesAtBottom();
   updateJumpButton();
+  if (toolbar) {
+    const currentTop = messagesEl.scrollTop;
+    const isScrollingDown = currentTop > lastMessagesScrollTop + 6;
+    const isScrollingUp = currentTop < lastMessagesScrollTop - 6;
+    if (isScrollingDown && currentTop > 40) {
+      toolbar.classList.add("hidden");
+    } else if (isScrollingUp) {
+      toolbar.classList.remove("hidden");
+    }
+    lastMessagesScrollTop = currentTop;
+  }
 });
 jumpLatest?.addEventListener("click", () => {
   scrollMessagesToLatest(true);
