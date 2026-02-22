@@ -1250,11 +1250,7 @@ async function sendMessageInternal(message) {
     };
     const { data, error } = await client.from("messages").insert(row).select().single();
     if (error) throw new Error(error.message);
-    const msg = supabaseRowToMessage(data);
-    if (msg && insertMessage(msg)) {
-      emitEvent("new-message", msg);
-    }
-    return msg;
+    return supabaseRowToMessage(data);
   }
   if (message.attachments?.length > 2) {
     throw new Error("Only 2 inline images allowed.");
