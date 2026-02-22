@@ -1241,7 +1241,7 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
     : null;
   if (msg.attachments && msg.attachments.length) {
     msg.attachments.forEach((att) => {
-      const mime = att?.mime || "";
+      const mime = inferAttachmentMime(att);
       if (mime.startsWith("image/")) {
         const img = document.createElement("img");
         img.src = att.data;
@@ -1342,7 +1342,8 @@ function closeImageViewer() {
 function updateInlinePreviews() {
   inlinePreviews.innerHTML = "";
   state.attachments.forEach((att) => {
-    if (att?.mime?.startsWith("image/")) {
+    const mime = inferAttachmentMime(att);
+    if (mime.startsWith("image/")) {
       const img = document.createElement("img");
       img.src = att.data;
       inlinePreviews.appendChild(img);
@@ -1352,7 +1353,7 @@ function updateInlinePreviews() {
     chip.className = "attachment-chip";
     const label = document.createElement("span");
     label.className = "attachment-chip-type";
-    label.textContent = att?.mime?.startsWith("audio/") ? "MP3" : "MP4";
+    label.textContent = mime.startsWith("audio/") ? "AUDIO" : "VIDEO";
     const name = document.createElement("span");
     name.className = "attachment-chip-name";
     name.textContent = att?.name || "media";
@@ -1538,11 +1539,21 @@ async function handleSend(text) {
     updateInlinePreviews();
     messageInput.value = "";
     autoResizeTextarea();
-    if (!useSupabase()) {
-      state.roomCounts[state.currentRoom] = (state.roomCounts[state.currentRoom] || 0) + 1;
-      addMessageToDom(msg);
+    const inserted = insertMessage(msg);
+    if (inserted) {
+      const room = msg.room || state.currentRoom;
+      state.roomCounts[room] = (state.roomCounts[room] || 0) + 1;
+      if (room === state.currentRoom) {
+        const shouldAutoScroll = isMessagesAtBottom();
+        addMessageToDom(msg, { sorted: true });
+        if (shouldAutoScroll) {
+          scrollMessagesToLatest(true);
+        } else {
+          state.isAtBottom = false;
+          updateJumpButton();
+        }
+      }
       renderRooms();
-      scrollMessagesToLatest(true);
     }
   } catch (err) {
     setStatus(String(err));
@@ -1613,6 +1624,19 @@ function sanitizeFilename(name, fallback = "file") {
 
 function toMB(bytes) {
   return bytes / (1024 * 1024);
+}
+
+function inferAttachmentMime(att) {
+  const raw = String(att?.mime || "").toLowerCase();
+  if (raw) return raw;
+  const name = String(att?.name || "").toLowerCase();
+  if (name.endsWith(".mp3")) return "audio/mpeg";
+  if (name.endsWith(".mp4")) return "video/mp4";
+  const data = String(att?.data || "");
+  if (data.startsWith("data:audio/")) return data.slice(5, data.indexOf(";"));
+  if (data.startsWith("data:video/")) return data.slice(5, data.indexOf(";"));
+  if (data.startsWith("data:image/")) return data.slice(5, data.indexOf(";"));
+  return "";
 }
 
 function readFileAsDataUrl(file) {
