@@ -1477,7 +1477,7 @@ async function handleCommand(text) {
 async function handleSend(text) {
   if (state.isSending) return;
   const trimmed = text.trim();
-  if (!trimmed) return;
+  if (!trimmed && !state.attachments.length) return;
 
   if (trimmed.startsWith("/join ") || trimmed.startsWith("/nick ") || trimmed.startsWith("/leave ")) {
     await handleCommand(trimmed);

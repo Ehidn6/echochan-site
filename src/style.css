@@ -305,6 +305,20 @@ body.sidebar-open .sidebar-overlay {
 .message-body.media-only .attachments {
   width: 100%;
 }
+.message-body.media-only .attachments img,
+.message-body.media-only .attachments video,
+.message-body.media-only .attachments audio {
+  max-width: 100%;
+}
+.message-body.media-only .attachments img {
+  max-height: min(52vh, 560px);
+}
+.message-body.media-only .attachments video {
+  max-height: min(52vh, 520px);
+}
+.message-body.media-only .attachments audio {
+  max-width: min(100%, 560px);
+}
 .message-body.media-only .attachments,
 .message-body.media-only .message-content {
   grid-column: auto;
