@@ -136,7 +136,7 @@ body.sidebar-collapsed .main {
   line-height: 1;
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
-  left: calc(12px + env(safe-area-inset-left));
+  left: calc(260px - 12px - 32px);
   z-index: 60;
   border-radius: 999px;
   background: rgba(17, 17, 17, 0.9);
@@ -428,6 +428,18 @@ body.sidebar-open .sidebar-overlay {
   object-fit: contain;
   background: transparent;
 }
+.message .attachments audio,
+.message .attachments video {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #0b0b0b;
+}
+.message .attachments a {
+  color: var(--text);
+  font-size: 12px;
+  word-break: break-all;
+}
 .youtube-embed {
   margin-top: 8px;
   border-radius: 6px;
@@ -628,14 +640,11 @@ body.sidebar-open .sidebar-overlay {
   .sidebar-toggle {
     display: inline-flex;
     top: calc(10px + env(safe-area-inset-top));
-    left: calc(10px + env(safe-area-inset-left));
+    left: calc(min(78vw, 320px) - 10px - 32px);
   }
   body.sidebar-open .sidebar-overlay {
     opacity: 1;
     pointer-events: auto;
-  }
-  body.sidebar-open .sidebar-toggle {
-    left: calc(min(78vw, 320px) + 10px + env(safe-area-inset-left));
   }
   .command-box {
     grid-template-columns: 1fr auto;
@@ -662,10 +671,16 @@ body.sidebar-open .sidebar-overlay {
     bottom: 76px;
   }
   .message-body.has-media {
-    grid-template-columns: minmax(96px, 140px) 1fr;
+    gap: 8px;
   }
   .message-body.media-only {
     grid-template-columns: 1fr;
+  }
+  .message-body.has-media .message-content {
+    margin-top: 0;
+  }
+  .message .attachments {
+    margin-bottom: 0;
   }
   .message-body.media-only .youtube-embed {
     aspect-ratio: 18 / 9;
@@ -719,6 +734,27 @@ body.sidebar-open .sidebar-overlay {
 
 .inline-previews { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .inline-previews img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #141414;
+  font-size: 12px;
+  color: var(--text);
+}
+.attachment-chip-type {
+  color: var(--muted);
+  font-weight: 600;
+}
+.attachment-chip-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .inline-previews:empty { display: none; }
 
 button {
