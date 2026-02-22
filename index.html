@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Echochan</title>
-    <script type="module" crossorigin src="./assets/index-4X2vQzEh.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BmzongAl.css">
+    <script type="module" crossorigin src="./assets/index-BSxMiRmC.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-B2Xl0Dd9.css">
   </head>
   <body>
     <div id="app">
@@ -26,6 +26,17 @@
             <span id="current-room">#test</span>
           </div>
           <div class="toolbar-actions">
+            <div id="now-playing" class="now-playing empty">
+              <div class="np-info">
+                <div id="np-title" class="np-title">No audio</div>
+                <div id="np-meta" class="np-meta"></div>
+              </div>
+              <div class="np-actions">
+                <button id="np-play" class="icon-btn" aria-label="Play/Pause">⏯</button>
+                <button id="np-stop" class="icon-btn" aria-label="Stop">⏹</button>
+                <button id="np-switch" class="icon-btn" aria-label="Switch">⟳</button>
+              </div>
+            </div>
             <button id="settings-btn">Settings</button>
           </div>
         </header>
