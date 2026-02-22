@@ -7,6 +7,7 @@
   --muted: #a0a0a0;
   --accent: #d0d0d0;
   --border: rgba(255, 255, 255, 0.08);
+  --sidebar-width: 260px;
 }
 
 * { box-sizing: border-box; }
@@ -22,10 +23,13 @@ html, body {
 #app {
   height: 100%;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   background: var(--bg);
   position: relative;
   overflow-x: hidden;
+}
+body.sidebar-collapsed #app {
+  grid-template-columns: 0 1fr;
 }
 
 .sidebar {
@@ -35,15 +39,18 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 260px;
+  position: relative;
+  inset: auto;
+  width: var(--sidebar-width);
   z-index: 20;
-  transform: translateX(0);
-  transition: transform 0.2s ease;
+  transform: none;
+  transition: width 0.2s ease, padding 0.2s ease;
 }
 body.sidebar-collapsed .sidebar {
-  transform: translateX(-100%);
+  width: 0;
+  padding: 0;
+  border-right: 0;
+  overflow: hidden;
 }
 .sidebar-title {
   font-weight: 600;
@@ -115,13 +122,10 @@ body.sidebar-collapsed .sidebar {
   height: 100vh;
 }
 .main {
-  margin-left: 260px;
-  transition: margin-left 0.2s ease;
+  margin-left: 0;
+  transition: none;
   width: 100%;
   overflow-x: hidden;
-}
-body.sidebar-collapsed .main {
-  margin-left: 0;
 }
 .toolbar {
   display: flex;
@@ -145,7 +149,7 @@ body.sidebar-collapsed .main {
   line-height: 1;
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
-  left: calc(260px - 12px - 32px);
+  left: calc(var(--sidebar-width) - 12px - 32px);
   z-index: 60;
   border-radius: 999px;
   background: rgba(17, 17, 17, 0.9);
@@ -361,6 +365,7 @@ body.sidebar-open .sidebar-overlay {
   display: grid;
   gap: 8px;
   flex: 1;
+  min-width: 0;
 }
 .message.system {
   color: var(--muted);
@@ -452,6 +457,7 @@ body.sidebar-open .sidebar-overlay {
   display: grid;
   gap: 8px;
   flex: 0 0 220px;
+  max-width: 220px;
 }
 .message .attachments img {
   width: 100%;
@@ -461,6 +467,7 @@ body.sidebar-open .sidebar-overlay {
   max-height: min(36vh, 400px);
   object-fit: contain;
   background: transparent;
+  max-width: 100%;
 }
 .message .attachments a {
   color: var(--text);
