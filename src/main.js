@@ -2,6 +2,11 @@ import "./style.css";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes, utf8ToBytes } from "@noble/hashes/utils";
 import { schnorr, secp256k1 } from "@noble/curves/secp256k1";
+import { createClient } from "@supabase/supabase-js";
+
+const DEFAULT_SUPABASE_URL = "https://nuildqmtkmzcwkgfnqki.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY =
+  "sb_publishable_QEjAIv_oVtq7M73mnTRqOA_kGM8tKhr";
 
 const el = (id) => document.getElementById(id);
 
@@ -35,6 +40,57 @@ const messagesByRoom = new Map();
 const seenIds = new Set();
 const messageIndex = new Map();
 let subscriptionId = "echochan-web";
+let supabaseClient = null;
+let supabaseChannel = null;
+
+function getSupabaseConfig() {
+  const url =
+    (state.settings?.supabase_url || "").trim() || DEFAULT_SUPABASE_URL;
+  const key =
+    (state.settings?.supabase_anon_key || "").trim() || DEFAULT_SUPABASE_ANON_KEY;
+  return { url, key };
+}
+
+function useSupabase() {
+  const { url, key } = getSupabaseConfig();
+  return Boolean(url && key);
+}
+
+function getSupabaseClient() {
+  if (!useSupabase()) return null;
+  if (!supabaseClient) {
+    const { url, key } = getSupabaseConfig();
+    supabaseClient = createClient(url, key, {
+      auth: { persistSession: false }
+    });
+  }
+  return supabaseClient;
+}
+
+function resetSupabaseChannel() {
+  const client = getSupabaseClient();
+  if (!client || !supabaseChannel) return;
+  client.removeChannel(supabaseChannel);
+  supabaseChannel = null;
+}
+
+function supabaseRowToMessage(row) {
+  if (!row) return null;
+  const createdAtMs = row.created_at ? Date.parse(row.created_at) : nowMs();
+  const createdAtSec = Math.floor(createdAtMs / 1000);
+  return {
+    id: row.id || "",
+    room: normalizeRoom(row.room || ""),
+    nick: row.nick || "Anonymous",
+    text: row.text || "",
+    attachments: Array.isArray(row.attachments) ? row.attachments : [],
+    reply: row.reply && typeof row.reply === "object" ? row.reply : null,
+    action: !!row.action,
+    createdAtSec,
+    ts: createdAtMs,
+    receivedAtMs: nowMs()
+  };
+}
 
 const audioManager = (() => {
   const sources = new Map();
@@ -351,8 +407,8 @@ function defaultSettings() {
     max_image_kb: 200,
     max_payload_kb: 300,
     supabase_upload: false,
-    supabase_url: "",
-    supabase_anon_key: "",
+    supabase_url: DEFAULT_SUPABASE_URL,
+    supabase_anon_key: DEFAULT_SUPABASE_ANON_KEY,
     supabase_bucket: "echochan-images",
     stun_urls: ["stun:stun.l.google.com:19302"],
     turn_urls: [],
@@ -955,10 +1011,41 @@ function broadcastPayload(payload) {
 }
 
 function resubscribeRelays() {
+  if (useSupabase()) {
+    subscribeSupabaseRoom(state.currentRoom);
+    return;
+  }
   const close = buildCloseRequest();
   broadcastPayload(close);
   const req = buildSubscriptionRequest();
   if (req) broadcastPayload(req);
+}
+
+function subscribeSupabaseRoom(room) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const normalized = normalizeRoom(room);
+  if (!normalized) return;
+  resetSupabaseChannel();
+  supabaseChannel = client
+    .channel(`messages:${normalized}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `room=eq.${normalized}`
+      },
+      (payload) => {
+        const msg = supabaseRowToMessage(payload.new);
+        if (!msg) return;
+        if (insertMessage(msg)) {
+          emitEvent("new-message", msg);
+        }
+      }
+    )
+    .subscribe();
 }
 
 function handleIncoming(raw, relayUrl) {
@@ -1123,14 +1210,52 @@ async function removeRoomInternal(room) {
 
 async function getRoomMessagesInternal(room) {
   const normalized = normalizeRoom(room);
-  return messagesByRoom.get(normalized) || [];
+  if (!useSupabase()) {
+    return messagesByRoom.get(normalized) || [];
+  }
+  const client = getSupabaseClient();
+  const { data, error } = await client
+    .from("messages")
+    .select("*")
+    .eq("room", normalized)
+    .order("created_at", { ascending: true })
+    .limit(500);
+  if (error) throw new Error(error.message);
+  return (data || [])
+    .map((row) => supabaseRowToMessage(row))
+    .filter(Boolean);
 }
 
 async function connectRelaysInternal() {
+  if (useSupabase()) {
+    return { total: 1, connected: 1, errors: 0, items: [] };
+  }
   return connectAllRelays();
 }
 
 async function sendMessageInternal(message) {
+  if (useSupabase()) {
+    if (message.attachments?.length > 2) {
+      throw new Error("Only 2 inline images allowed.");
+    }
+    const room = normalizeRoom(message.room);
+    const client = getSupabaseClient();
+    const row = {
+      room,
+      nick: message.nick || "Anonymous",
+      text: message.text || "",
+      attachments: message.attachments || [],
+      reply: message.reply || null,
+      action: !!message.action
+    };
+    const { data, error } = await client.from("messages").insert(row).select().single();
+    if (error) throw new Error(error.message);
+    const msg = supabaseRowToMessage(data);
+    if (msg && insertMessage(msg)) {
+      emitEvent("new-message", msg);
+    }
+    return msg;
+  }
   if (message.attachments?.length > 2) {
     throw new Error("Only 2 inline images allowed.");
   }
@@ -1676,8 +1801,13 @@ async function loadState() {
   if (maxImageInput) maxImageInput.value = snapshot.settings.max_image_kb;
   if (maxPayloadInput) maxPayloadInput.value = snapshot.settings.max_payload_kb;
   if (supabaseUploadToggle) supabaseUploadToggle.checked = !!snapshot.settings.supabase_upload;
-  if (supabaseUrlInput) supabaseUrlInput.value = snapshot.settings.supabase_url || "";
-  if (supabaseAnonKeyInput) supabaseAnonKeyInput.value = snapshot.settings.supabase_anon_key || "";
+  if (supabaseUrlInput) {
+    supabaseUrlInput.value = snapshot.settings.supabase_url || DEFAULT_SUPABASE_URL || "";
+  }
+  if (supabaseAnonKeyInput) {
+    supabaseAnonKeyInput.value =
+      snapshot.settings.supabase_anon_key || DEFAULT_SUPABASE_ANON_KEY || "";
+  }
   if (supabaseBucketInput) supabaseBucketInput.value = snapshot.settings.supabase_bucket || "echochan-images";
   if (stunInput) stunInput.value = snapshot.settings.stun_urls?.join("\n") || "";
   if (torToggle) torToggle.checked = snapshot.settings.use_tor || false;
@@ -1723,6 +1853,7 @@ function startRelayPolling() {
 }
 
 function startMessagePolling() {
+  if (useSupabase()) return;
   if (state.messagePollId) return;
   state.messagePollId = setInterval(async () => {
     if (!state.currentRoom) return;
@@ -1902,9 +2033,17 @@ async function loadRoomMessages(room) {
   renderMessages(list);
   syncPeers(list);
   renderRooms();
+  if (useSupabase()) {
+    subscribeSupabaseRoom(room);
+  }
 }
 
 async function connectRelays() {
+  if (useSupabase()) {
+    setStatus("Supabase connected");
+    showToast("Connected to Supabase.", "info", 2500);
+    return;
+  }
   setStatus("Connecting...");
   showToast("Connecting to relays...", "info", 3000);
   startInitialBuffer();
