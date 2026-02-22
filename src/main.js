@@ -6,6 +6,8 @@ const DEFAULT_SUPABASE_ANON_KEY =
   "sb_publishable_QEjAIv_oVtq7M73mnTRqOA_kGM8tKhr";
 const DEFAULT_MAX_AUDIO_MB = 20;
 const DEFAULT_MAX_VIDEO_MB = 50;
+const INLINE_MEDIA_MAX_MB = 3;
+const MAX_PAYLOAD_KB = 8000;
 const MAX_ATTACHMENT_COUNT = 2;
 
 const el = (id) => document.getElementById(id);
@@ -17,7 +19,7 @@ const state = {
   roomCounts: {},
   attachments: [],
   maxImageKB: 300,
-  maxPayloadKB: 450,
+  maxPayloadKB: 6000,
   maxAudioMB: DEFAULT_MAX_AUDIO_MB,
   maxVideoMB: DEFAULT_MAX_VIDEO_MB,
   lastMessageId: new Map(),
@@ -345,7 +347,7 @@ function defaultSettings() {
     nick: "Anonymous",
     rooms: ["#echo"],
     max_image_kb: 200,
-    max_payload_kb: 300,
+    max_payload_kb: 6000,
     max_audio_mb: DEFAULT_MAX_AUDIO_MB,
     max_video_mb: DEFAULT_MAX_VIDEO_MB,
     supabase_upload: false,
@@ -1610,6 +1612,15 @@ function toMB(bytes) {
   return bytes / (1024 * 1024);
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("Failed to read file."));
+    reader.readAsDataURL(file);
+  });
+}
+
 async function uploadImageToSupabase(dataUrl, filename) {
   const url = state.settings.supabase_url;
   const key = state.settings.supabase_anon_key;
@@ -1700,9 +1711,6 @@ async function handleFiles(files) {
       }
 
       if (isMp3File(file) || isMp4File(file)) {
-        if (!state.settings.supabase_upload) {
-          throw new Error("Enable Supabase upload to send mp3/mp4.");
-        }
         const isAudio = isMp3File(file);
         const limitMb = isAudio ? state.maxAudioMB : state.maxVideoMB;
         if (toMB(file.size) > limitMb) {
@@ -1710,16 +1718,37 @@ async function handleFiles(files) {
             `${isAudio ? "MP3" : "MP4"} exceeds ${limitMb}MB limit.`
           );
         }
-        setStatus(`Uploading ${isAudio ? "audio" : "video"}...`);
-        const url = await uploadFileToSupabase(file);
+
+        if (state.settings.supabase_upload) {
+          setStatus(`Uploading ${isAudio ? "audio" : "video"}...`);
+          const url = await uploadFileToSupabase(file);
+          state.attachments.push({
+            kind: "link",
+            mime: file.type || (isAudio ? "audio/mpeg" : "video/mp4"),
+            data: url,
+            size: file.size,
+            name: file.name || (isAudio ? "audio.mp3" : "video.mp4")
+          });
+          setStatus(`${isAudio ? "Audio" : "Video"} uploaded.`);
+          updateInlinePreviews();
+          continue;
+        }
+
+        if (toMB(file.size) > INLINE_MEDIA_MAX_MB) {
+          throw new Error(
+            `${isAudio ? "MP3" : "MP4"} exceeds inline ${INLINE_MEDIA_MAX_MB}MB limit.`
+          );
+        }
+        setStatus(`Attaching ${isAudio ? "audio" : "video"}...`);
+        const dataUrl = await readFileAsDataUrl(file);
         state.attachments.push({
-          kind: "link",
+          kind: "inline",
           mime: file.type || (isAudio ? "audio/mpeg" : "video/mp4"),
-          data: url,
+          data: dataUrl,
           size: file.size,
           name: file.name || (isAudio ? "audio.mp3" : "video.mp4")
         });
-        setStatus(`${isAudio ? "Audio" : "Video"} uploaded.`);
+        setStatus(`${isAudio ? "Audio" : "Video"} attached.`);
         updateInlinePreviews();
         continue;
       }
@@ -1745,7 +1774,7 @@ async function saveSettings({ close = true } = {}) {
   const nextImageKb = Number(maxImageInput?.value) || state.maxImageKB;
   const nextPayloadKb = Number(maxPayloadInput?.value) || state.maxPayloadKB;
   state.settings.max_image_kb = Math.max(20, Math.min(300, nextImageKb));
-  state.settings.max_payload_kb = Math.max(60, Math.min(450, nextPayloadKb));
+  state.settings.max_payload_kb = Math.max(60, Math.min(MAX_PAYLOAD_KB, nextPayloadKb));
   state.settings.supabase_upload = !!supabaseUploadToggle?.checked;
   state.settings.supabase_url = supabaseUrlInput?.value.trim() || "";
   state.settings.supabase_anon_key = supabaseAnonKeyInput?.value.trim() || "";
