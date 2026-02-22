@@ -26,6 +26,7 @@ const state = {
   maxAudioMB: DEFAULT_MAX_AUDIO_MB,
   maxVideoMB: DEFAULT_MAX_VIDEO_MB,
   lastMessageId: new Map(),
+  lastCreatedAtByRoom: new Map(),
   replyTo: null,
   isAtBottom: true,
   isSending: false
@@ -36,6 +37,8 @@ const seenIds = new Set();
 const messageIndex = new Map();
 let supabaseClient = null;
 let supabaseChannel = null;
+let pollTimer = null;
+let pollRoom = null;
 
 function getSupabaseConfig() {
   const url =
@@ -770,6 +773,55 @@ function subscribeSupabaseRoom(room) {
     .subscribe();
 }
 
+function updateLastCreatedAt(room, msg) {
+  if (!msg || !room) return;
+  const ms = msg.ts || msg.receivedAtMs || nowMs();
+  const prev = state.lastCreatedAtByRoom?.get(room) || 0;
+  if (ms > prev) state.lastCreatedAtByRoom.set(room, ms);
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  pollRoom = null;
+}
+
+function startPolling(room) {
+  if (!useSupabase()) return;
+  if (pollRoom === room && pollTimer) return;
+  stopPolling();
+  pollRoom = room;
+  pollTimer = setInterval(() => pollNewMessages(room), 5000);
+}
+
+async function pollNewMessages(room) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const normalized = normalizeRoom(room);
+  if (!normalized) return;
+  const lastMs = state.lastCreatedAtByRoom?.get(normalized) || 0;
+  const sinceIso = lastMs ? new Date(lastMs).toISOString() : null;
+  let query = client.from("messages").select("*").eq("room", normalized);
+  if (sinceIso) query = query.gt("created_at", sinceIso);
+  const { data, error } = await query.order("created_at", { ascending: true }).limit(100);
+  if (error) return;
+  const rows = (data || []).map((row) => supabaseRowToMessage(row)).filter(Boolean);
+  let insertedAny = false;
+  rows.forEach((msg) => {
+    if (insertMessage(msg)) {
+      insertedAny = true;
+      updateLastCreatedAt(normalized, msg);
+      emitEvent("new-message", msg);
+    }
+  });
+  if (!insertedAny && lastMs === 0 && rows.length) {
+    const last = rows[rows.length - 1];
+    updateLastCreatedAt(normalized, last);
+  }
+}
+
 function insertMessage(msg) {
   if (!msg) return false;
   if (!msg.id) msg.id = computeMessageId(msg);
@@ -786,6 +838,8 @@ function insertMessage(msg) {
     if (removed?.id) messageIndex.delete(removed.id);
   }
   messagesByRoom.set(msg.room, list);
+  if (!state.lastCreatedAtByRoom) state.lastCreatedAtByRoom = new Map();
+  updateLastCreatedAt(msg.room, msg);
   return true;
 }
 
@@ -1419,6 +1473,7 @@ async function loadRoomMessages(room) {
   renderRooms();
   if (useSupabase()) {
     subscribeSupabaseRoom(room);
+    startPolling(room);
   }
 }
 
