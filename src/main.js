@@ -795,6 +795,7 @@ function startPolling(room) {
   if (pollRoom === room && pollTimer) return;
   stopPolling();
   pollRoom = room;
+  pollNewMessages(room);
   pollTimer = setInterval(() => pollNewMessages(room), 5000);
 }
 
@@ -1991,6 +1992,12 @@ document.addEventListener("keydown", (evt) => {
   }
   if (evt.key === "Escape" && !imageViewer.classList.contains("hidden")) {
     closeImageViewer();
+  }
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    pollNewMessages(state.currentRoom);
   }
 });
 
