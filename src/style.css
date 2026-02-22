@@ -307,7 +307,7 @@ body.sidebar-open .sidebar-overlay {
   flex: 0 0 auto;
 }
 .message-body.media-stacked .attachments audio {
-  width: 100%;
+  width: 320px;
   max-width: 100%;
 }
 .message-body.media-only {
