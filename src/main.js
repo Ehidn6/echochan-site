@@ -2177,10 +2177,12 @@ async function handleSend(text) {
     updateInlinePreviews();
     messageInput.value = "";
     autoResizeTextarea();
-    state.roomCounts[state.currentRoom] = (state.roomCounts[state.currentRoom] || 0) + 1;
-    addMessageToDom(msg);
-    renderRooms();
-    scrollMessagesToLatest(true);
+    if (!useSupabase()) {
+      state.roomCounts[state.currentRoom] = (state.roomCounts[state.currentRoom] || 0) + 1;
+      addMessageToDom(msg);
+      renderRooms();
+      scrollMessagesToLatest(true);
+    }
   } catch (err) {
     setStatus(String(err));
   }
