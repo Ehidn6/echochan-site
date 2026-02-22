@@ -1,4 +1,7 @@
 import "./style.css";
+
+const CLIENT_VERSION = "2026-02-22-1";
+console.info("Echochan client", CLIENT_VERSION);
 import { createClient } from "@supabase/supabase-js";
 
 const DEFAULT_SUPABASE_URL = "https://nuildqmtkmzcwkgfnqki.supabase.co";
