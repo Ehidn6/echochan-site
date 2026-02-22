@@ -137,7 +137,7 @@ body.sidebar-collapsed .main {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
   left: calc(12px + env(safe-area-inset-left));
-  z-index: 30;
+  z-index: 40;
   border-radius: 999px;
   background: rgba(17, 17, 17, 0.9);
   border: 1px solid var(--border);
@@ -273,6 +273,7 @@ body.sidebar-open .sidebar-overlay {
   flex: 1;
   overflow: auto;
   padding: 16px;
+  padding-bottom: 96px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -742,7 +743,7 @@ body.sidebar-open .sidebar-overlay {
     height: 100dvh;
     border-radius: 0;
     padding: calc(12px + env(safe-area-inset-top)) 12px
-      calc(16px + env(safe-area-inset-bottom)) 12px;
+      calc(84px + env(safe-area-inset-bottom)) 12px;
     overflow: auto;
   }
 }
@@ -796,6 +797,7 @@ button:hover { border-color: var(--accent); }
   gap: 12px;
   max-height: 86vh;
   overflow: auto;
+  padding-bottom: 84px;
 }
 .viewer-content {
   max-width: min(90vw, 980px);
