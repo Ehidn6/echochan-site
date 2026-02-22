@@ -775,7 +775,9 @@ function subscribeSupabaseRoom(room) {
 
 function updateLastCreatedAt(room, msg) {
   if (!msg || !room) return;
-  const ms = msg.ts || msg.receivedAtMs || nowMs();
+  const ms = msg.createdAtSec
+    ? msg.createdAtSec * 1000
+    : msg.ts || nowMs();
   const prev = state.lastCreatedAtByRoom?.get(room) || 0;
   if (ms > prev) state.lastCreatedAtByRoom.set(room, ms);
 }
