@@ -134,7 +134,9 @@ body.sidebar-collapsed .sidebar {
   align-items: center;
   padding: 10px 16px 10px 56px;
   border-bottom: 1px solid var(--border);
-  background: rgba(17, 17, 17, 0.5);
+  background: rgba(17, 17, 17, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   transition: transform 0.2s ease, opacity 0.2s ease, height 0.2s ease, padding 0.2s ease;
   overflow: hidden;
 }
@@ -554,7 +556,9 @@ body.sidebar-open .sidebar-overlay {
 
 .composer {
   border-top: 1px solid var(--border);
-  background: var(--panel);
+  background: rgba(17, 17, 17, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   padding: 12px 16px;
   display: grid;
   grid-template-columns: 1fr auto;
