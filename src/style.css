@@ -138,9 +138,7 @@ body.sidebar-collapsed .sidebar {
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 .toolbar.hidden {
-  transform: translateY(-100%);
-  opacity: 0;
-  pointer-events: none;
+  display: none;
 }
 .room-label { font-weight: 600; }
 .room-label {

@@ -1875,9 +1875,9 @@ messagesEl.addEventListener("scroll", () => {
     const currentTop = messagesEl.scrollTop;
     const isScrollingDown = currentTop > lastMessagesScrollTop + 6;
     const isScrollingUp = currentTop < lastMessagesScrollTop - 6;
-    if (isScrollingDown && currentTop > 40) {
+    if (isScrollingDown && currentTop > 20) {
       toolbar.classList.add("hidden");
-    } else if (isScrollingUp) {
+    } else if (isScrollingUp || currentTop <= 10) {
       toolbar.classList.remove("hidden");
     }
     lastMessagesScrollTop = currentTop;
