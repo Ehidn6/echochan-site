@@ -227,6 +227,24 @@ body.sidebar-open .sidebar-overlay {
   gap: 8px;
   pointer-events: none;
 }
+.status-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(20, 20, 20, 0.92);
+  color: var(--text);
+  font-size: 13px;
+  z-index: 12;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+.status-banner.hidden {
+  display: none;
+}
 .toast {
   border: 1px solid var(--border);
   background: #1a1a1a;
@@ -663,9 +681,11 @@ body.sidebar-open .sidebar-overlay {
     display: inline-flex;
     top: calc(10px + env(safe-area-inset-top));
     left: calc(12px + env(safe-area-inset-left));
+    right: auto;
   }
   body.sidebar-open .sidebar-toggle {
-    left: calc(min(78vw, 320px) - 10px - 32px);
+    left: auto;
+    right: calc(12px + env(safe-area-inset-right));
   }
   body.sidebar-open .sidebar-overlay {
     opacity: 1;
@@ -754,6 +774,9 @@ body.sidebar-open .sidebar-overlay {
       calc(140px + env(safe-area-inset-bottom)) 12px;
     overflow: auto;
     scroll-padding-bottom: calc(140px + env(safe-area-inset-bottom));
+  }
+  .sidebar-overlay {
+    inset: 0 0 calc(72px + env(safe-area-inset-bottom)) 0;
   }
 }
 
