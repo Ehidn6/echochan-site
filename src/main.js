@@ -6,7 +6,7 @@ const DEFAULT_SUPABASE_ANON_KEY =
   "sb_publishable_QEjAIv_oVtq7M73mnTRqOA_kGM8tKhr";
 const DEFAULT_MAX_AUDIO_MB = 20;
 const DEFAULT_MAX_VIDEO_MB = 50;
-const INLINE_MEDIA_MAX_MB = 3;
+const INLINE_MEDIA_MAX_MB = 5;
 const MAX_PAYLOAD_KB = 8000;
 const MAX_ATTACHMENT_COUNT = 2;
 
@@ -368,6 +368,9 @@ function loadSettingsFromStorage() {
     }
   }
   settings.rooms = normalizeRooms(settings.rooms || []);
+  if (!settings.max_payload_kb || settings.max_payload_kb < 6000) {
+    settings.max_payload_kb = 6000;
+  }
   if (!settings.rooms.length) settings.rooms = ["#echo"];
   return settings;
 }
@@ -1718,6 +1721,20 @@ async function handleFiles(files) {
             `${isAudio ? "MP3" : "MP4"} exceeds ${limitMb}MB limit.`
           );
         }
+        if (toMB(file.size) <= INLINE_MEDIA_MAX_MB) {
+          setStatus(`Attaching ${isAudio ? "audio" : "video"}...`);
+          const dataUrl = await readFileAsDataUrl(file);
+          state.attachments.push({
+            kind: "inline",
+            mime: file.type || (isAudio ? "audio/mpeg" : "video/mp4"),
+            data: dataUrl,
+            size: file.size,
+            name: file.name || (isAudio ? "audio.mp3" : "video.mp4")
+          });
+          setStatus(`${isAudio ? "Audio" : "Video"} attached.`);
+          updateInlinePreviews();
+          continue;
+        }
 
         if (state.settings.supabase_upload) {
           setStatus(`Uploading ${isAudio ? "audio" : "video"}...`);
@@ -1734,23 +1751,9 @@ async function handleFiles(files) {
           continue;
         }
 
-        if (toMB(file.size) > INLINE_MEDIA_MAX_MB) {
-          throw new Error(
-            `${isAudio ? "MP3" : "MP4"} exceeds inline ${INLINE_MEDIA_MAX_MB}MB limit.`
-          );
-        }
-        setStatus(`Attaching ${isAudio ? "audio" : "video"}...`);
-        const dataUrl = await readFileAsDataUrl(file);
-        state.attachments.push({
-          kind: "inline",
-          mime: file.type || (isAudio ? "audio/mpeg" : "video/mp4"),
-          data: dataUrl,
-          size: file.size,
-          name: file.name || (isAudio ? "audio.mp3" : "video.mp4")
-        });
-        setStatus(`${isAudio ? "Audio" : "Video"} attached.`);
-        updateInlinePreviews();
-        continue;
+        throw new Error(
+          `${isAudio ? "MP3" : "MP4"} exceeds inline ${INLINE_MEDIA_MAX_MB}MB limit. Enable Supabase upload to send larger files.`
+        );
       }
 
       setStatus("Only images, mp3, and mp4 are supported.");
