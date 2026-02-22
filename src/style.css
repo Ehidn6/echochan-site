@@ -58,6 +58,7 @@ body.sidebar-collapsed .sidebar {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  margin-top: 8px;
 }
 .room-list {
   flex: 1;
