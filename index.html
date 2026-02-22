@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Echochan</title>
+    <script type="module" crossorigin src="./assets/index-BaO98DYL.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Dw08QxvU.css">
+  </head>
+  <body>
+    <div id="app">
+      <button id="sidebar-overlay" class="sidebar-overlay" aria-label="Close rooms"></button>
+      <aside class="sidebar">
+        <div class="sidebar-title">Rooms</div>
+        <div id="room-list" class="room-list"></div>
+        <div class="command-box">
+          <input id="command-input" type="text" placeholder="/join #room or /nick NewNick" />
+          <button id="connect-btn">Connect</button>
+        </div>
+        <div class="status" id="relay-status">Disconnected</div>
+      </aside>
+      <main class="main">
+        <header class="toolbar">
+          <div class="room-label">
+            <button id="sidebar-toggle" class="icon-btn sidebar-toggle" aria-label="Rooms">☰</button>
+            <span id="current-room">#test</span>
+          </div>
+          <div class="toolbar-actions">
+            <button id="settings-btn">Settings</button>
+          </div>
+        </header>
+        <div id="relay-errors" class="relay-errors hidden"></div>
+        <div id="toast-stack" class="toast-stack"></div>
+        <section id="messages" class="messages"></section>
+        <footer class="composer">
+          <div class="composer-inputs">
+            <textarea id="message-input" placeholder="Type message or /me action"></textarea>
+            <div id="inline-previews" class="inline-previews"></div>
+          </div>
+          <div class="composer-actions">
+            <button id="attach-btn" class="icon-btn" aria-label="Attach Image">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                <circle cx="8" cy="10" r="2"></circle>
+                <path d="M21 16l-5-5-6 6-3-3-4 4"></path>
+              </svg>
+            </button>
+            <button id="send-btn" class="icon-btn" aria-label="Send">➤</button>
+          </div>
+        </footer>
+      </main>
+    </div>
+
+    <div id="image-viewer" class="modal hidden">
+      <div class="viewer-content">
+        <img id="viewer-image" alt="preview" />
+      </div>
+    </div>
+
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>Settings</div>
+          <button id="settings-close">Close</button>
+        </div>
+        <label>
+          Nick
+          <input id="nick-input" type="text" />
+        </label>
+        <label>
+          Relay URLs (one per line)
+          <textarea id="relay-input"></textarea>
+        </label>
+        <label>
+          Relay status
+          <div id="relay-status-list" class="relay-status-list"></div>
+        </label>
+        <label>
+          Max image KB
+          <input id="max-image-kb" type="number" min="20" max="80" />
+        </label>
+        <label>
+          Max payload KB
+          <input id="max-payload-kb" type="number" min="60" max="200" />
+        </label>
+        <label>
+          Supabase image upload
+          <input id="supabase-upload-toggle" type="checkbox" />
+        </label>
+        <label>
+          Supabase URL
+          <input id="supabase-url" type="text" placeholder="https://xxxx.supabase.co" />
+        </label>
+        <label>
+          Supabase anon key
+          <input id="supabase-anon-key" type="password" placeholder="eyJhbGciOi..." />
+        </label>
+        <label>
+          Supabase bucket (public)
+          <input id="supabase-bucket" type="text" placeholder="echochan-images" />
+        </label>
+        <div class="modal-actions">
+          <button id="relay-defaults">Use default relays</button>
+          <button id="relay-prune">Remove failing</button>
+          <button id="relay-test">Test relays</button>
+          <button id="settings-save">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirm-modal" class="modal hidden">
+      <div class="modal-content confirm">
+        <div class="modal-header">
+          <div id="confirm-title">Confirm</div>
+        </div>
+        <div id="confirm-body" class="confirm-body">Are you sure?</div>
+        <div class="modal-actions confirm-actions">
+          <button id="confirm-cancel">Cancel</button>
+          <button id="confirm-ok">Remove</button>
+        </div>
+      </div>
+    </div>
+
+    <input id="file-input" type="file" accept="image/*" multiple style="display: none" />
+  </body>
+</html>
