@@ -1594,16 +1594,16 @@ function isImageFile(file) {
   return file?.type?.startsWith("image/");
 }
 
-function isMp3File(file) {
+function isAudioFile(file) {
   const name = (file?.name || "").toLowerCase();
   const type = (file?.type || "").toLowerCase();
-  return type === "audio/mpeg" || type === "audio/mp3" || name.endsWith(".mp3");
+  return type.startsWith("audio/") || name.endsWith(".mp3");
 }
 
-function isMp4File(file) {
+function isVideoFile(file) {
   const name = (file?.name || "").toLowerCase();
   const type = (file?.type || "").toLowerCase();
-  return type === "video/mp4" || name.endsWith(".mp4");
+  return type.startsWith("video/") || name.endsWith(".mp4");
 }
 
 function sanitizeFilename(name, fallback = "file") {
@@ -1713,8 +1713,8 @@ async function handleFiles(files) {
         continue;
       }
 
-      if (isMp3File(file) || isMp4File(file)) {
-        const isAudio = isMp3File(file);
+      if (isAudioFile(file) || isVideoFile(file)) {
+        const isAudio = isAudioFile(file);
         const limitMb = isAudio ? state.maxAudioMB : state.maxVideoMB;
         if (toMB(file.size) > limitMb) {
           throw new Error(
