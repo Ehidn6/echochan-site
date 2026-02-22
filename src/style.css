@@ -135,9 +135,13 @@ body.sidebar-collapsed .main {
   font-size: 16px;
   line-height: 1;
   position: fixed;
-  top: 12px;
-  left: 12px;
+  top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
   z-index: 30;
+  border-radius: 999px;
+  background: rgba(17, 17, 17, 0.9);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(6px);
 }
 .sidebar-overlay {
   position: fixed;
@@ -657,8 +661,8 @@ body.sidebar-open .sidebar-overlay {
   }
   .sidebar-toggle {
     display: inline-flex;
-    top: 10px;
-    left: 10px;
+    top: calc(10px + env(safe-area-inset-top));
+    left: calc(10px + env(safe-area-inset-left));
   }
   body.sidebar-open .sidebar-overlay {
     opacity: 1;
@@ -671,7 +675,7 @@ body.sidebar-open .sidebar-overlay {
     position: sticky;
     top: 0;
     z-index: 5;
-    padding: 10px 12px 10px 52px;
+    padding: 10px 12px 10px calc(52px + env(safe-area-inset-left));
   }
   .now-playing {
     display: none;
@@ -682,6 +686,7 @@ body.sidebar-open .sidebar-overlay {
   .messages {
     padding: 12px;
     gap: 10px;
+    padding-bottom: calc(12px + 84px + env(safe-area-inset-bottom));
   }
   .jump-latest {
     right: 12px;
@@ -711,7 +716,7 @@ body.sidebar-open .sidebar-overlay {
     z-index: 6;
     grid-template-columns: 1fr;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
   }
   .composer-actions {
     grid-auto-flow: column;
@@ -736,7 +741,8 @@ body.sidebar-open .sidebar-overlay {
     max-height: 100dvh;
     height: 100dvh;
     border-radius: 0;
-    padding: 12px 12px calc(16px + env(safe-area-inset-bottom)) 12px;
+    padding: calc(12px + env(safe-area-inset-top)) 12px
+      calc(16px + env(safe-area-inset-bottom)) 12px;
     overflow: auto;
   }
 }
