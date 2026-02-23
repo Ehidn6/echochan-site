@@ -204,7 +204,7 @@ body.sidebar-collapsed .sidebar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  padding: 10px 16px 10px 56px;
   border-bottom: 1px solid var(--border);
   background: rgba(23, 23, 23, 0.65);
   position: sticky;
@@ -818,7 +818,7 @@ body.theme-light .message .text {
     position: sticky;
     top: 0;
     z-index: 5;
-    padding: 10px 12px;
+    padding: 10px 12px 10px calc(52px + env(safe-area-inset-left));
   }
   .now-playing {
     display: none;
