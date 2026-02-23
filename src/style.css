@@ -686,15 +686,15 @@ body.theme-light .reply-snippet-inline:hover {
   border: none;
   background: transparent;
   color: var(--text);
-  font-size: 18px;
+  font-size: 22px;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
 }
 .reaction-image {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 6px;
   display: block;
 }
 .reaction-btn .reaction-image {
