@@ -47,6 +47,11 @@ body.theme-light .toolbar::before {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+body.theme-light .toolbar {
+  background: rgba(226, 223, 218, 0.85);
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
 body.theme-light .command-box input {
   background: #ffffff;
   color: var(--text);
@@ -237,8 +242,8 @@ body.sidebar-collapsed .sidebar {
   line-height: 1;
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
-  left: calc(var(--sidebar-width) - 12px - 32px);
-  z-index: 60;
+  left: calc(12px + env(safe-area-inset-left));
+  z-index: 70;
   border-radius: 999px;
   background: rgba(17, 17, 17, 0.9);
   border: 1px solid var(--border);
@@ -779,7 +784,7 @@ body.sidebar-open .sidebar-overlay {
     top: calc(10px + env(safe-area-inset-top));
     left: calc(12px + env(safe-area-inset-left));
     right: auto;
-    z-index: 30;
+    z-index: 70;
   }
   body.sidebar-open .sidebar-overlay {
     opacity: 1;
