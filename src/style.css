@@ -43,8 +43,8 @@ body.theme-light .sidebar-toggle {
 }
 
 body.theme-light .toolbar::before {
-  background: rgba(226, 223, 218, 0.9);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--bg);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 body.theme-light .toolbar {
