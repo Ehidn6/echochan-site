@@ -35,7 +35,8 @@ const state = {
   lastCreatedAtByRoom: new Map(),
   replyTo: null,
   isAtBottom: true,
-  isSending: false
+  isSending: false,
+  isLoadingMessages: false
 };
 
 const messagesByRoom = new Map();
@@ -1797,12 +1798,12 @@ async function loadState() {
     if (elapsed < 400) {
       await new Promise((resolve) => setTimeout(resolve, 400 - elapsed));
     }
-    // Keep spinner until first render or timeout
-    const waitUntil = Date.now() + 1500;
+    // Keep spinner until messages loaded or timeout
+    const waitUntil = Date.now() + 4000;
     while (Date.now() < waitUntil) {
       const hasMessages = messagesEl?.querySelector(".message");
       const hasEmpty = messagesEl?.querySelector(".empty-state");
-      if (hasMessages || hasEmpty) break;
+      if (!state.isLoadingMessages && (hasMessages || hasEmpty)) break;
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
     statusBanner.classList.add("hidden");
@@ -1812,6 +1813,7 @@ async function loadState() {
 }
 
 async function loadRoomMessages(room) {
+  state.isLoadingMessages = true;
   const list = await invoke("get_room_messages", { room });
   state.roomCounts[room] = list.length;
   renderMessages(list);
@@ -1822,6 +1824,7 @@ async function loadRoomMessages(room) {
     subscribeSupabaseReactions(room);
     startPolling(room);
   }
+  state.isLoadingMessages = false;
 }
 
 async function connectRelays() {
