@@ -15,7 +15,7 @@ body.theme-light {
   --panel: #efebe6;
   --panel-2: #e7e2dc;
   --text: #1f1f1f;
-  --muted: #6a655f;
+  --muted: #4e4a44;
   --accent: #2f2a24;
   --border: rgba(0, 0, 0, 0.1);
 }
@@ -45,6 +45,10 @@ body.theme-light .sidebar-toggle {
 body.theme-light .toolbar::before {
   background: var(--bg);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+body.theme-light .main {
+  color: var(--text);
 }
 
 body.theme-light .toolbar {
