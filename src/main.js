@@ -54,6 +54,7 @@ let supabaseRoomsChannel = null;
 let supabaseReactionsChannel = null;
 let pollTimer = null;
 let pollRoom = null;
+let reactionsPollTimer = null;
 
 function getClientId() {
   const key = "echochan_client_id";
@@ -1085,6 +1086,10 @@ function stopPolling() {
     clearInterval(pollTimer);
     pollTimer = null;
   }
+  if (reactionsPollTimer) {
+    clearInterval(reactionsPollTimer);
+    reactionsPollTimer = null;
+  }
   pollRoom = null;
 }
 
@@ -1095,6 +1100,8 @@ function startPolling(room) {
   pollRoom = room;
   pollNewMessages(room);
   pollTimer = setInterval(() => pollNewMessages(room), 5000);
+  loadReactionsForRoom(room);
+  reactionsPollTimer = setInterval(() => loadReactionsForRoom(room), 5000);
 }
 
 async function pollNewMessages(room) {
