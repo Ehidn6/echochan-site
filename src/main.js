@@ -1846,15 +1846,16 @@ async function loadRoomMessages(room) {
     room,
     options: { latest: true, limit: 100 }
   });
-  state.roomCounts[room] = list.length;
-  renderMessages(list);
-  renderRooms();
-  state.pagination.set(normalizeRoom(room), {
+  const normalizedRoom = normalizeRoom(room);
+  state.pagination.set(normalizedRoom, {
     oldestCreatedAtSec: list[0] ? getCreatedAtSec(list[0]) : 0,
     hasMore: list.length >= 100
   });
-  state.loadedRooms.add(normalizeRoom(room));
+  state.loadedRooms.add(normalizedRoom);
   state.isLoadingMessages = false;
+  state.roomCounts[room] = list.length;
+  renderMessages(list);
+  renderRooms();
   if (useSupabase()) {
     subscribeSupabaseRoom(room);
     loadReactionsForRoom(room);
