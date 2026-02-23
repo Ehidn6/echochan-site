@@ -896,7 +896,7 @@ function renderReactionBar(messageId, room) {
       const img = document.createElement("img");
       img.className = "reaction-image";
       img.alt = "reaction";
-      img.src = `/assets/${emoji.slice(4)}`;
+      img.src = `/${emoji.slice(4)}`;
       btn.appendChild(img);
       const countSpan = document.createElement("span");
       countSpan.className = "reaction-count";
@@ -934,7 +934,7 @@ function toggleReactionPanel(messageId, room, anchor) {
         const img = document.createElement("img");
         img.className = "reaction-image";
         img.alt = "reaction";
-        img.src = `/assets/${emoji.slice(4)}`;
+        img.src = `/${emoji.slice(4)}`;
         btn.appendChild(img);
       } else {
         btn.textContent = emoji;
@@ -1420,10 +1420,7 @@ function renderMessages(list, { autoScroll = true } = {}) {
   reactionPanelByMessage.forEach((panel) => panel.remove());
   reactionPanelByMessage.clear();
   if (!list.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty-state";
-    empty.textContent = "No messages yet. Try /join #room or type a message.";
-    messagesEl.appendChild(empty);
+    return;
   }
   const ordered = [...list].sort((a, b) => {
     const cmp = compareMessages(a, b);
