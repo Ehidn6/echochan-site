@@ -1955,10 +1955,14 @@ messagesEl.addEventListener("scroll", () => {
     const currentTop = messagesEl.scrollTop;
     const isScrollingDown = currentTop > lastMessagesScrollTop + 6;
     const isScrollingUp = currentTop < lastMessagesScrollTop - 6;
-    if (isScrollingDown && currentTop > 20) {
+    const isMobile = window.innerWidth <= 900;
+    if (currentTop <= 6) {
+      toolbar.classList.remove("hidden");
+      sidebarToggle?.classList.remove("hidden");
+    } else if (isScrollingDown && currentTop > (isMobile ? 60 : 20)) {
       toolbar.classList.add("hidden");
       sidebarToggle?.classList.add("hidden");
-    } else if (isScrollingUp || currentTop <= 10) {
+    } else if (isScrollingUp) {
       toolbar.classList.remove("hidden");
       sidebarToggle?.classList.remove("hidden");
     }
