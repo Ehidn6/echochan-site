@@ -48,7 +48,7 @@ body.theme-light .toolbar::before {
 }
 
 body.theme-light .toolbar {
-  background: rgba(226, 223, 218, 0.85);
+  background: var(--bg);
   border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
