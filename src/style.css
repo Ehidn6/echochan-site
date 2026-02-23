@@ -657,8 +657,15 @@ body.theme-light .reply-snippet-inline:hover {
   box-shadow: inset 0 0 0 1px rgba(255, 155, 190, 0.3);
 }
 .reaction-add {
-  padding: 2px 6px;
+  margin-left: auto;
+  padding: 1px 6px;
   font-weight: 600;
+  font-size: 11px;
+  opacity: 0.6;
+  background: transparent;
+}
+.reaction-add:hover {
+  opacity: 0.9;
 }
 .reaction-panel {
   position: fixed;
