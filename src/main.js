@@ -31,6 +31,7 @@ const seenIds = new Set();
 const messageIndex = new Map();
 let supabaseClient = null;
 let supabaseChannel = null;
+let supabaseRoomsChannel = null;
 let pollTimer = null;
 let pollRoom = null;
 
@@ -63,6 +64,13 @@ function resetSupabaseChannel() {
   if (!client || !supabaseChannel) return;
   client.removeChannel(supabaseChannel);
   supabaseChannel = null;
+}
+
+function resetSupabaseRoomsChannel() {
+  const client = getSupabaseClient();
+  if (!client || !supabaseRoomsChannel) return;
+  client.removeChannel(supabaseRoomsChannel);
+  supabaseRoomsChannel = null;
 }
 
 function supabaseRowToMessage(row) {
@@ -314,6 +322,7 @@ const MESSAGE_FLOW_REVERSE = false;
 
 let confirmResolver = null;
 let lastMessagesScrollTop = 0;
+let suppressToolbarAutoHide = false;
 
 function showToast(text, variant = "info", timeoutMs = 6000) {
   if (!text) return;
@@ -742,6 +751,48 @@ function resubscribeRelays() {
   subscribeSupabaseRoom(state.currentRoom);
 }
 
+async function fetchPublicRooms() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  const { data, error } = await client
+    .from("rooms")
+    .select("name, created_at")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return normalizeRooms((data || []).map((row) => row.name));
+}
+
+async function syncPublicRooms() {
+  try {
+    const rooms = await fetchPublicRooms();
+    if (!rooms || !rooms.length) return;
+    state.rooms = rooms;
+    if (!state.rooms.includes(state.currentRoom)) {
+      state.currentRoom = state.rooms[0];
+      currentRoomEl.textContent = state.currentRoom;
+    }
+    renderRooms();
+  } catch (err) {
+    setStatus(String(err));
+  }
+}
+
+function subscribeSupabaseRooms() {
+  const client = getSupabaseClient();
+  if (!client) return;
+  resetSupabaseRoomsChannel();
+  supabaseRoomsChannel = client
+    .channel("rooms")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "rooms" },
+      () => {
+        syncPublicRooms();
+      }
+    )
+    .subscribe();
+}
+
 function showStatusBanner(text, timeoutMs = 2500) {
   if (!statusBanner) return;
   statusBanner.textContent = text;
@@ -881,6 +932,19 @@ async function addRoomInternal(room) {
     state.settings.rooms.push(normalized);
     saveSettingsToStorage(state.settings);
     resubscribeRelays();
+  }
+  if (useSupabase()) {
+    const client = getSupabaseClient();
+    if (client) {
+      const { error } = await client
+        .from("rooms")
+        .upsert({ name: normalized }, { onConflict: "name" });
+      if (error) {
+        setStatus(String(error));
+      } else {
+        await syncPublicRooms();
+      }
+    }
   }
 }
 
@@ -1058,6 +1122,7 @@ function randomId() {
 
 function renderRooms() {
   roomListEl.innerHTML = "";
+  const allowRemove = !useSupabase();
   state.rooms.forEach((room) => {
     const row = document.createElement("div");
     row.className = "room" + (room === state.currentRoom ? " active" : "");
@@ -1066,33 +1131,37 @@ function renderRooms() {
     const count = document.createElement("span");
     count.className = "count";
     count.textContent = state.roomCounts[room] || 0;
-    const remove = document.createElement("button");
-    remove.className = "room-remove";
-    remove.textContent = "×";
-    remove.title = "Remove room";
-    remove.addEventListener("click", async (evt) => {
-      evt.stopPropagation();
-      if (state.rooms.length <= 1) {
-        setStatus("At least one room must remain.");
-        return;
-      }
-      const confirmed = await openConfirm({
-        title: "Remove room",
-        body: `Remove room ${room}?`,
-        okText: "Remove"
+    if (allowRemove) {
+      const remove = document.createElement("button");
+      remove.className = "room-remove";
+      remove.textContent = "×";
+      remove.title = "Remove room";
+      remove.addEventListener("click", async (evt) => {
+        evt.stopPropagation();
+        if (state.rooms.length <= 1) {
+          setStatus("At least one room must remain.");
+          return;
+        }
+        const confirmed = await openConfirm({
+          title: "Remove room",
+          body: `Remove room ${room}?`,
+          okText: "Remove"
+        });
+        if (!confirmed) return;
+        await invoke("remove_room", { room });
+        state.rooms = state.rooms.filter((r) => r !== room);
+        if (state.currentRoom === room) {
+          state.currentRoom = state.rooms[0];
+          currentRoomEl.textContent = state.currentRoom;
+          await loadRoomMessages(state.currentRoom);
+        }
+        renderRooms();
+        addSystemMessage(`Left ${room}.`);
       });
-      if (!confirmed) return;
-      await invoke("remove_room", { room });
-      state.rooms = state.rooms.filter((r) => r !== room);
-      if (state.currentRoom === room) {
-        state.currentRoom = state.rooms[0];
-        currentRoomEl.textContent = state.currentRoom;
-        await loadRoomMessages(state.currentRoom);
-      }
-      renderRooms();
-      addSystemMessage(`Left ${room}.`);
-    });
-    row.append(name, count, remove);
+      row.append(name, count, remove);
+    } else {
+      row.append(name, count);
+    }
     row.addEventListener("click", async () => {
       document.body.classList.remove("sidebar-open");
       state.currentRoom = room;
@@ -1167,10 +1236,14 @@ function scrollMessagesToLatest(force = false) {
     updateJumpButton();
     return;
   }
+  suppressToolbarAutoHide = true;
   requestAnimationFrame(() => {
     messagesEl.scrollTop = MESSAGE_FLOW_REVERSE ? 0 : messagesEl.scrollHeight;
     state.isAtBottom = true;
     updateJumpButton();
+    requestAnimationFrame(() => {
+      suppressToolbarAutoHide = false;
+    });
   });
 }
 
@@ -1430,6 +1503,11 @@ async function loadState() {
   currentRoomEl.textContent = state.currentRoom;
   renderRooms();
   await loadRoomMessages(state.currentRoom);
+
+  if (useSupabase()) {
+    await syncPublicRooms();
+    subscribeSupabaseRooms();
+  }
 
   if (JSON.stringify(normalizedRooms) !== JSON.stringify(snapshot.settings.rooms)) {
     state.settings.rooms = normalizedRooms;
@@ -1873,7 +1951,7 @@ messageInput.addEventListener("input", autoResizeTextarea);
 messagesEl.addEventListener("scroll", () => {
   state.isAtBottom = isMessagesAtBottom();
   updateJumpButton();
-  if (toolbar) {
+  if (toolbar && !suppressToolbarAutoHide) {
     const currentTop = messagesEl.scrollTop;
     const isScrollingDown = currentTop > lastMessagesScrollTop + 6;
     const isScrollingUp = currentTop < lastMessagesScrollTop - 6;

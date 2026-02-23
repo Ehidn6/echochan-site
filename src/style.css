@@ -226,10 +226,6 @@ body.sidebar-collapsed .sidebar {
 .toolbar.hidden {
   transform: translateY(-100%);
   opacity: 0;
-  height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-bottom: 0;
   pointer-events: none;
 }
 .room-label { font-weight: 600; }
@@ -803,7 +799,13 @@ body.theme-light .message .text {
     top: calc(10px + env(safe-area-inset-top));
     left: calc(12px + env(safe-area-inset-left));
     right: auto;
-    z-index: 70;
+    z-index: 120;
+  }
+  body.sidebar-open .sidebar {
+    z-index: 30;
+  }
+  body.sidebar-open .sidebar-toggle {
+    z-index: 120;
   }
   body.sidebar-open .sidebar-overlay {
     opacity: 1;
