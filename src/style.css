@@ -689,8 +689,8 @@ body.theme-light .reply-snippet-inline:hover {
   padding: 6px;
 }
 .reaction-image {
-  width: 44px;
-  height: 44px;
+  width: 30px;
+  height: 30px;
   object-fit: cover;
   border-radius: 6px;
   display: block;
@@ -699,7 +699,7 @@ body.theme-light .reply-snippet-inline:hover {
   margin-right: 6px;
 }
 .reaction-count {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
 }
 body.theme-light .reaction-btn,
