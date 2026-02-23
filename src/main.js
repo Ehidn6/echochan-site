@@ -1741,6 +1741,7 @@ function estimatePayloadKB(payload) {
 }
 
 async function loadState() {
+  const loadingStartedAt = Date.now();
   if (statusBanner) {
     statusBanner.classList.remove("hidden");
     statusBanner.classList.add("loading");
@@ -1792,6 +1793,10 @@ async function loadState() {
   toolbar?.classList.remove("hidden");
   sidebarToggle?.classList.remove("hidden");
   if (statusBanner) {
+    const elapsed = Date.now() - loadingStartedAt;
+    if (elapsed < 400) {
+      await new Promise((resolve) => setTimeout(resolve, 400 - elapsed));
+    }
     statusBanner.classList.add("hidden");
     statusBanner.classList.remove("loading");
     statusBanner.textContent = "";
