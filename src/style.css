@@ -252,7 +252,7 @@ body.sidebar-collapsed .sidebar {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
 }
 .sidebar-overlay {
   position: fixed;
