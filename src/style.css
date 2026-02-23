@@ -526,11 +526,14 @@ body.sidebar-open .sidebar-overlay {
 }
 
 body.theme-light .meta-left .nick {
-  color: #2d8a5b;
+  color: #2d8a5b !important;
 }
 
-body.theme-light .message .meta {
-  color: #6a645e;
+body.theme-light .message .meta,
+body.theme-light .message .meta.compact,
+body.theme-light .day-separator {
+  color: #6a645e !important;
+  opacity: 1;
 }
 .reply-btn {
   border: 1px solid var(--border);
