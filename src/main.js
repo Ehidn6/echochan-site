@@ -36,7 +36,10 @@ const state = {
   replyTo: null,
   isAtBottom: true,
   isSending: false,
-  isLoadingMessages: false
+  isLoadingMessages: false,
+  isLoadingOlder: false,
+  pagination: new Map(),
+  loadedRooms: new Set()
 };
 
 const messagesByRoom = new Map();
@@ -297,7 +300,7 @@ const invoke = async (cmd, payload = {}) => {
     case "remove_room":
       return removeRoomInternal(payload.room);
     case "get_room_messages":
-      return getRoomMessagesInternal(payload.room);
+      return getRoomMessagesInternal(payload.room, payload.options || {});
     case "send_message":
       return sendMessageInternal(payload.message);
     default:
@@ -1195,22 +1198,36 @@ async function removeRoomInternal(room) {
   resubscribeRelays();
 }
 
-async function getRoomMessagesInternal(room) {
+async function getRoomMessagesInternal(room, options = {}) {
   const normalized = normalizeRoom(room);
+  const limit = Number(options.limit) || 100;
+  const before = options.before || null;
+  const latest = !!options.latest;
   if (!useSupabase()) {
-    return messagesByRoom.get(normalized) || [];
+    const list = messagesByRoom.get(normalized) || [];
+    if (before) {
+      const older = list.filter((msg) => getCreatedAtSec(msg) < before);
+      return older.slice(Math.max(0, older.length - limit));
+    }
+    if (latest) {
+      return list.slice(Math.max(0, list.length - limit));
+    }
+    return list.slice(0, limit);
   }
   const client = getSupabaseClient();
-  const { data, error } = await client
-    .from("messages")
-    .select("*")
-    .eq("room", normalized)
-    .order("created_at", { ascending: true })
-    .limit(500);
+  let query = client.from("messages").select("*").eq("room", normalized);
+  if (before) {
+    query = query.lt("created_at", new Date(before * 1000).toISOString());
+  }
+  if (latest) {
+    query = query.order("created_at", { ascending: false }).limit(limit);
+  } else {
+    query = query.order("created_at", { ascending: true }).limit(limit);
+  }
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
-  return (data || [])
-    .map((row) => supabaseRowToMessage(row))
-    .filter(Boolean);
+  const rows = (data || []).map((row) => supabaseRowToMessage(row)).filter(Boolean);
+  return latest ? rows.reverse() : rows;
 }
 
 async function sendMessageInternal(message) {
@@ -1798,11 +1815,10 @@ async function loadState() {
     if (elapsed < 400) {
       await new Promise((resolve) => setTimeout(resolve, 400 - elapsed));
     }
-    // Keep spinner until messages loaded
+    // Keep spinner until initial room messages loaded
     while (true) {
-      const hasMessages = messagesEl?.querySelector(".message");
-      const hasEmpty = messagesEl?.querySelector(".empty-state");
-      if (!state.isLoadingMessages && (hasMessages || hasEmpty)) break;
+      const normalized = normalizeRoom(state.currentRoom);
+      if (!state.isLoadingMessages && state.loadedRooms.has(normalized)) break;
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
     statusBanner.classList.add("hidden");
@@ -1813,17 +1829,56 @@ async function loadState() {
 
 async function loadRoomMessages(room) {
   state.isLoadingMessages = true;
-  const list = await invoke("get_room_messages", { room });
+  const list = await invoke("get_room_messages", {
+    room,
+    options: { latest: true, limit: 100 }
+  });
   state.roomCounts[room] = list.length;
   renderMessages(list);
   renderRooms();
+  state.pagination.set(normalizeRoom(room), {
+    oldestCreatedAtSec: list[0] ? getCreatedAtSec(list[0]) : 0,
+    hasMore: list.length >= 100
+  });
+  state.loadedRooms.add(normalizeRoom(room));
+  state.isLoadingMessages = false;
   if (useSupabase()) {
     subscribeSupabaseRoom(room);
-    await loadReactionsForRoom(room);
+    loadReactionsForRoom(room);
     subscribeSupabaseReactions(room);
     startPolling(room);
   }
-  state.isLoadingMessages = false;
+}
+
+async function loadOlderMessages(room) {
+  const normalized = normalizeRoom(room);
+  if (!normalized) return;
+  if (state.isLoadingOlder) return;
+  const page = state.pagination.get(normalized);
+  if (!page || !page.hasMore) return;
+  state.isLoadingOlder = true;
+  const prevHeight = messagesEl.scrollHeight;
+  const list = await invoke("get_room_messages", {
+    room: normalized,
+    options: { before: page.oldestCreatedAtSec, limit: 100 }
+  });
+  if (!list.length) {
+    page.hasMore = false;
+    state.isLoadingOlder = false;
+    return;
+  }
+  list.forEach((msg) => {
+    if (insertMessage(msg)) {
+      if (msg.room === state.currentRoom) {
+        addMessageToDom(msg, { sorted: true });
+      }
+    }
+  });
+  page.oldestCreatedAtSec = getCreatedAtSec(list[0]) || page.oldestCreatedAtSec;
+  if (list.length < 100) page.hasMore = false;
+  const newHeight = messagesEl.scrollHeight;
+  messagesEl.scrollTop += newHeight - prevHeight;
+  state.isLoadingOlder = false;
 }
 
 async function connectRelays() {
@@ -2249,6 +2304,9 @@ messageInput.addEventListener("keyup", autoResizeTextarea);
 messagesEl.addEventListener("scroll", () => {
   state.isAtBottom = isMessagesAtBottom();
   updateJumpButton();
+  if (messagesEl.scrollTop <= 120) {
+    loadOlderMessages(state.currentRoom);
+  }
   if (toolbar && !suppressToolbarAutoHide) {
     const currentTop = messagesEl.scrollTop;
     const isScrollingDown = currentTop > lastMessagesScrollTop + 6;
