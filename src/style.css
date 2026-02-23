@@ -652,10 +652,6 @@ body.theme-light .reply-snippet-inline:hover {
   border-radius: 999px;
   cursor: pointer;
 }
-.reaction-btn.mine {
-  border-color: rgba(255, 155, 190, 0.7);
-  box-shadow: inset 0 0 0 1px rgba(255, 155, 190, 0.3);
-}
 .reaction-add {
   margin-left: auto;
   padding: 0 4px;
