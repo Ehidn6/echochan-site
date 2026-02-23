@@ -1080,3 +1080,11 @@ body.theme-light .theme-toggle .icon-sun {
   font-size: 11px;
   margin-top: 6px;
 }
+  .reply-btn {
+    opacity: 1;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .message:hover .reply-btn {
+    opacity: 1;
+  }

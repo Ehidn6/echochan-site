@@ -483,6 +483,10 @@ function setReplyTarget(msg) {
     ts: msg.ts || nowMs()
   };
   updateReplyBar();
+  if (messageInput) {
+    messageInput.focus();
+    messageInput.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
 function clearReplyTarget() {
