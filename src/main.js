@@ -1307,6 +1307,12 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   const nickText = msg.nick || "Anonymous";
   nickSpan.textContent = nickText;
   nickSpan.style.color = colorForNick(nickText);
+  if (nickText.toLowerCase().includes("meh")) {
+    const heart = document.createElement("span");
+    heart.className = "nick-heart";
+    heart.textContent = "❤";
+    nickSpan.appendChild(heart);
+  }
   const timeSpan = document.createElement("span");
   timeSpan.className = "time";
   timeSpan.textContent = formatTime(msg.createdAtSec || getCreatedAtSec(msg));
