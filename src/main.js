@@ -1797,6 +1797,14 @@ async function loadState() {
     if (elapsed < 400) {
       await new Promise((resolve) => setTimeout(resolve, 400 - elapsed));
     }
+    // Keep spinner until first render or timeout
+    const waitUntil = Date.now() + 1500;
+    while (Date.now() < waitUntil) {
+      const hasMessages = messagesEl?.querySelector(".message");
+      const hasEmpty = messagesEl?.querySelector(".empty-state");
+      if (hasMessages || hasEmpty) break;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
     statusBanner.classList.add("hidden");
     statusBanner.classList.remove("loading");
     statusBanner.textContent = "";
