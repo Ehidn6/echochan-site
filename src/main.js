@@ -1512,6 +1512,11 @@ function estimatePayloadKB(payload) {
 }
 
 async function loadState() {
+  if (statusBanner) {
+    statusBanner.classList.remove("hidden");
+    statusBanner.classList.add("loading");
+    statusBanner.textContent = "";
+  }
   applyTheme(loadTheme());
   state.settings = loadSettingsFromStorage();
   const snapshot = await invoke("get_state", {});
@@ -1557,6 +1562,11 @@ async function loadState() {
   updateJumpButton();
   toolbar?.classList.remove("hidden");
   sidebarToggle?.classList.remove("hidden");
+  if (statusBanner) {
+    statusBanner.classList.add("hidden");
+    statusBanner.classList.remove("loading");
+    statusBanner.textContent = "";
+  }
 }
 
 async function loadRoomMessages(room) {
@@ -1571,9 +1581,8 @@ async function loadRoomMessages(room) {
 }
 
 async function connectRelays() {
-  setStatus("Supabase connected");
-  showStatusBanner("Supabase connected");
-  showToast("Connected to Supabase.", "info", 2500);
+  setStatus("");
+  relayStatusEl?.classList.add("hidden");
 }
 
 async function handleCommand(text) {
