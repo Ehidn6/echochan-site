@@ -676,6 +676,8 @@ body.theme-light .reply-snippet-inline:hover {
   border: 1px solid var(--border);
   background: #111;
   z-index: 40;
+  max-width: min(90vw, 280px);
+  flex-wrap: wrap;
 }
 .reaction-panel.open {
   display: inline-flex;
