@@ -1957,8 +1957,10 @@ messagesEl.addEventListener("scroll", () => {
     const isScrollingUp = currentTop < lastMessagesScrollTop - 6;
     if (isScrollingDown && currentTop > 20) {
       toolbar.classList.add("hidden");
+      sidebarToggle?.classList.add("hidden");
     } else if (isScrollingUp || currentTop <= 10) {
       toolbar.classList.remove("hidden");
+      sidebarToggle?.classList.remove("hidden");
     }
     lastMessagesScrollTop = currentTop;
   }
