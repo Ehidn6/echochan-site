@@ -1520,6 +1520,8 @@ async function loadState() {
   updateReplyBar();
   state.isAtBottom = true;
   updateJumpButton();
+  toolbar?.classList.remove("hidden");
+  sidebarToggle?.classList.remove("hidden");
 }
 
 async function loadRoomMessages(room) {
