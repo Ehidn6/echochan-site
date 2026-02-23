@@ -1312,7 +1312,7 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
     const heart = document.createElement("span");
     heart.className = "nick-heart";
     heart.textContent = "❤";
-    metaLeft.appendChild(heart);
+    nickSpan.appendChild(heart);
   }
   metaLeft.appendChild(timeSpan);
   meta.appendChild(metaLeft);
