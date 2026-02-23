@@ -245,16 +245,14 @@ body.sidebar-collapsed .sidebar {
   left: calc(12px + env(safe-area-inset-left));
   z-index: 1200;
   border-radius: 999px;
-  background: rgba(17, 17, 17, 0.9);
-  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.85);
+  color: #f5f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   backdrop-filter: blur(6px);
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-}
-
-body.sidebar-open .sidebar-toggle {
-  left: calc(var(--sidebar-width) - 12px - 32px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 .sidebar-overlay {
   position: fixed;
