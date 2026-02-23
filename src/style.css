@@ -243,6 +243,7 @@ body.sidebar-collapsed .sidebar {
   visibility: visible;
   pointer-events: auto;
   box-shadow: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .sidebar-toggle.hidden {
@@ -801,6 +802,11 @@ body.theme-light .message .text {
     left: calc(12px + env(safe-area-inset-left));
     right: auto;
     z-index: 1200;
+  }
+  .sidebar-toggle.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
   }
   body.sidebar-open .sidebar {
     z-index: 1100;
