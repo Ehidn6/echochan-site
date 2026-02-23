@@ -853,6 +853,7 @@ body.theme-light .message .text {
   }
   .message .attachments {
     margin-bottom: 0;
+    justify-items: start;
   }
   .message-body.media-only .youtube-embed {
     aspect-ratio: 18 / 9;
