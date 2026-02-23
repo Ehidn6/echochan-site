@@ -19,6 +19,22 @@ body.theme-light {
   --accent: #2f2a24;
   --border: rgba(0, 0, 0, 0.08);
 }
+body.theme-light .now-playing,
+body.theme-light .toast {
+  background: rgba(255, 255, 255, 0.7);
+}
+body.theme-light .composer {
+  background: rgba(242, 240, 236, 0.7);
+}
+body.theme-light button,
+body.theme-light .icon-btn {
+  background: #f2f0ec;
+  color: var(--text);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+body.theme-light .icon-btn svg {
+  stroke: var(--text);
+}
 
 * { box-sizing: border-box; }
 html, body {
