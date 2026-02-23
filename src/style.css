@@ -884,6 +884,10 @@ body.theme-light .message .text {
   }
   .composer textarea {
     min-height: 40px;
+    max-height: 40px;
+    height: 40px;
+    overflow: hidden;
+    resize: none;
   }
   .inline-previews img {
     width: 60px;
