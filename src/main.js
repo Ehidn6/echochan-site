@@ -393,22 +393,9 @@ function computeMessageId() {
   return `msg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-function getSortKeySec(msg) {
-  const created = getCreatedAtSec(msg);
-  const nowSec = Math.floor(nowMs() / 1000);
-  if (!created) return nowSec;
-  const diff = Math.abs(created - nowSec);
-  // Guard against bad sender clocks: keep very skewed messages near arrival.
-  if (diff > 6 * 3600) {
-    const recv = Math.floor((msg?.receivedAtMs || nowMs()) / 1000);
-    return recv || created;
-  }
-  return created;
-}
-
 function compareMessages(a, b) {
-  const ta = getSortKeySec(a);
-  const tb = getSortKeySec(b);
+  const ta = getCreatedAtSec(a);
+  const tb = getCreatedAtSec(b);
   if (ta !== tb) return ta - tb;
   const aid = String(a?.id || "");
   const bid = String(b?.id || "");
