@@ -644,8 +644,8 @@ body.theme-light .reply-snippet-inline:hover {
 }
 .reaction-btn,
 .reaction-add {
-  border: 1px solid var(--border);
-  background: #141414;
+  border: none;
+  background: transparent;
   color: var(--text);
   font-size: 12px;
   padding: 2px 8px;
@@ -673,7 +673,9 @@ body.theme-light .reply-snippet-inline:hover {
   background: #111;
   z-index: 40;
   max-width: min(90vw, 280px);
+  max-height: min(60vh, 320px);
   flex-wrap: wrap;
+  overflow: auto;
 }
 .reaction-panel.open {
   display: inline-flex;
