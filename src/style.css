@@ -36,6 +36,37 @@ body.theme-light .icon-btn svg {
   stroke: var(--text);
 }
 
+body.theme-light .toolbar::before {
+  background: rgba(255, 255, 255, 0.75);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+body.theme-light .command-box input {
+  background: #ffffff;
+  color: var(--text);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+body.theme-light .command-box button {
+  background: #ffffff;
+  color: var(--text);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+body.theme-light .room.active {
+  background: #e6e2dc;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+  border-left: 3px solid rgba(90, 90, 90, 0.35);
+}
+
+body.theme-light .room-remove {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+body.theme-light .room-remove:hover {
+  color: rgba(0, 0, 0, 0.75);
+}
+
 * { box-sizing: border-box; }
 html, body {
   height: 100%;
