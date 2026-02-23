@@ -11,13 +11,13 @@
 }
 body.theme-light {
   color-scheme: light;
-  --bg: #e9e7e3;
-  --panel: #f2f0ec;
-  --panel-2: #ebe7e1;
+  --bg: #e2dfda;
+  --panel: #efebe6;
+  --panel-2: #e7e2dc;
   --text: #1f1f1f;
   --muted: #6a655f;
   --accent: #2f2a24;
-  --border: rgba(0, 0, 0, 0.08);
+  --border: rgba(0, 0, 0, 0.1);
 }
 body.theme-light .now-playing,
 body.theme-light .toast {
@@ -34,6 +34,12 @@ body.theme-light .icon-btn {
 }
 body.theme-light .icon-btn svg {
   stroke: var(--text);
+}
+
+body.theme-light .sidebar-toggle {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.2);
+  color: var(--text);
 }
 
 body.theme-light .toolbar::before {
