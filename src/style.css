@@ -130,7 +130,7 @@ body.sidebar-collapsed .sidebar {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-top: 16px;
+  margin-top: 44px;
 }
 .room-list {
   flex: 1;
