@@ -1798,9 +1798,8 @@ async function loadState() {
     if (elapsed < 400) {
       await new Promise((resolve) => setTimeout(resolve, 400 - elapsed));
     }
-    // Keep spinner until messages loaded or timeout
-    const waitUntil = Date.now() + 4000;
-    while (Date.now() < waitUntil) {
+    // Keep spinner until messages loaded
+    while (true) {
       const hasMessages = messagesEl?.querySelector(".message");
       const hasEmpty = messagesEl?.querySelector(".empty-state");
       if (!state.isLoadingMessages && (hasMessages || hasEmpty)) break;
