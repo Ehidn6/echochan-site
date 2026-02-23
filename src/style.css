@@ -14,8 +14,8 @@ body.theme-light {
   --bg: #e2dfda;
   --panel: #efebe6;
   --panel-2: #e7e2dc;
-  --text: #1f1f1f;
-  --muted: #4e4a44;
+  --text: #161616;
+  --muted: #3f3b36;
   --accent: #2f2a24;
   --border: rgba(0, 0, 0, 0.1);
 }
@@ -526,14 +526,18 @@ body.sidebar-open .sidebar-overlay {
 }
 
 body.theme-light .meta-left .nick {
-  color: #2d8a5b !important;
+  color: #1f7f52 !important;
 }
 
 body.theme-light .message .meta,
 body.theme-light .message .meta.compact,
 body.theme-light .day-separator {
-  color: #6a645e !important;
+  color: #4a4540 !important;
   opacity: 1;
+}
+
+body.theme-light .message .text {
+  color: var(--text);
 }
 .reply-btn {
   border: 1px solid var(--border);
