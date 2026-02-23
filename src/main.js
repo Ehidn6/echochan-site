@@ -8,7 +8,18 @@ const DEFAULT_SUPABASE_URL = "https://nuildqmtkmzcwkgfnqki.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY =
   "sb_publishable_QEjAIv_oVtq7M73mnTRqOA_kGM8tKhr";
 const MAX_ATTACHMENT_COUNT = 2;
-const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
+const REACTION_EMOJIS = [
+  "👍",
+  "❤️",
+  "😂",
+  "😮",
+  "😢",
+  "😡",
+  "img:reactions/elf.png",
+  "img:reactions/smile.webp",
+  "img:reactions/wink.jpg",
+  "img:reactions/cute.webp"
+];
 
 const el = (id) => document.getElementById(id);
 
@@ -881,7 +892,19 @@ function renderReactionBar(messageId, room) {
     const btn = document.createElement("button");
     btn.className = `reaction-btn${mine ? " mine" : ""}`;
     btn.type = "button";
-    btn.textContent = `${emoji} ${count}`;
+    if (emoji.startsWith("img:")) {
+      const img = document.createElement("img");
+      img.className = "reaction-image";
+      img.alt = "reaction";
+      img.src = `/assets/${emoji.slice(4)}`;
+      btn.appendChild(img);
+      const countSpan = document.createElement("span");
+      countSpan.className = "reaction-count";
+      countSpan.textContent = String(count);
+      btn.appendChild(countSpan);
+    } else {
+      btn.textContent = `${emoji} ${count}`;
+    }
     btn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       toggleReaction(messageId, room, emoji);
@@ -907,7 +930,15 @@ function toggleReactionPanel(messageId, room, anchor) {
     REACTION_EMOJIS.forEach((emoji) => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.textContent = emoji;
+      if (emoji.startsWith("img:")) {
+        const img = document.createElement("img");
+        img.className = "reaction-image";
+        img.alt = "reaction";
+        img.src = `/assets/${emoji.slice(4)}`;
+        btn.appendChild(img);
+      } else {
+        btn.textContent = emoji;
+      }
       btn.addEventListener("click", (evt) => {
         evt.stopPropagation();
         toggleReaction(messageId, room, emoji);

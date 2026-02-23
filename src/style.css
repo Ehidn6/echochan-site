@@ -688,6 +688,20 @@ body.theme-light .reply-snippet-inline:hover {
   cursor: pointer;
   padding: 2px;
 }
+.reaction-image {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+.reaction-btn .reaction-image {
+  margin-right: 4px;
+}
+.reaction-count {
+  font-size: 11px;
+  color: var(--text);
+}
 body.theme-light .reaction-btn,
 body.theme-light .reaction-add {
   background: #f2f0ec;
