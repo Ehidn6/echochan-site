@@ -8,6 +8,7 @@ const DEFAULT_SUPABASE_URL = "https://nuildqmtkmzcwkgfnqki.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY =
   "sb_publishable_QEjAIv_oVtq7M73mnTRqOA_kGM8tKhr";
 const MAX_ATTACHMENT_COUNT = 2;
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
 const el = (id) => document.getElementById(id);
 
@@ -29,11 +30,27 @@ const state = {
 const messagesByRoom = new Map();
 const seenIds = new Set();
 const messageIndex = new Map();
+const reactionsByMessage = new Map();
+const reactionBarByMessage = new Map();
+const reactionPanelByMessage = new Map();
 let supabaseClient = null;
 let supabaseChannel = null;
 let supabaseRoomsChannel = null;
+let supabaseReactionsChannel = null;
 let pollTimer = null;
 let pollRoom = null;
+
+function getClientId() {
+  const key = "echochan_client_id";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `cid_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
 
 function getSupabaseConfig() {
   const url =
@@ -71,6 +88,13 @@ function resetSupabaseRoomsChannel() {
   if (!client || !supabaseRoomsChannel) return;
   client.removeChannel(supabaseRoomsChannel);
   supabaseRoomsChannel = null;
+}
+
+function resetSupabaseReactionsChannel() {
+  const client = getSupabaseClient();
+  if (!client || !supabaseReactionsChannel) return;
+  client.removeChannel(supabaseReactionsChannel);
+  supabaseReactionsChannel = null;
 }
 
 function supabaseRowToMessage(row) {
@@ -555,6 +579,10 @@ function hideReplyPreview() {
   replyPreviewEl.classList.remove("visible");
 }
 
+function closeAllReactionPanels() {
+  reactionPanelByMessage.forEach((panel) => panel.classList.remove("open"));
+}
+
 function isMessagesAtBottom() {
   const threshold = 80;
   const distance =
@@ -802,6 +830,168 @@ function subscribeSupabaseRooms() {
       { event: "*", schema: "public", table: "rooms" },
       () => {
         syncPublicRooms();
+      }
+    )
+    .subscribe();
+}
+
+function ensureReactionState(messageId) {
+  if (!messageId) return new Map();
+  let map = reactionsByMessage.get(messageId);
+  if (!map) {
+    map = new Map();
+    reactionsByMessage.set(messageId, map);
+  }
+  return map;
+}
+
+function applyReactionDelta(messageId, emoji, clientId, add) {
+  if (!messageId || !emoji || !clientId) return;
+  const map = ensureReactionState(messageId);
+  let set = map.get(emoji);
+  if (!set) {
+    set = new Set();
+    map.set(emoji, set);
+  }
+  if (add) {
+    set.add(clientId);
+  } else {
+    set.delete(clientId);
+    if (!set.size) map.delete(emoji);
+  }
+}
+
+function getReactionSummary(messageId) {
+  const map = reactionsByMessage.get(messageId);
+  if (!map) return [];
+  const me = getClientId();
+  const out = [];
+  map.forEach((set, emoji) => {
+    out.push({ emoji, count: set.size, mine: set.has(me) });
+  });
+  return out.sort((a, b) => b.count - a.count);
+}
+
+function renderReactionBar(messageId, room) {
+  const bar = reactionBarByMessage.get(messageId);
+  if (!bar) return;
+  bar.innerHTML = "";
+  const summary = getReactionSummary(messageId);
+  summary.forEach(({ emoji, count, mine }) => {
+    const btn = document.createElement("button");
+    btn.className = `reaction-btn${mine ? " mine" : ""}`;
+    btn.type = "button";
+    btn.textContent = `${emoji} ${count}`;
+    btn.addEventListener("click", (evt) => {
+      evt.stopPropagation();
+      toggleReaction(messageId, room, emoji);
+    });
+    bar.appendChild(btn);
+  });
+  const addBtn = document.createElement("button");
+  addBtn.className = "reaction-add";
+  addBtn.type = "button";
+  addBtn.textContent = "＋";
+  addBtn.addEventListener("click", (evt) => {
+    evt.stopPropagation();
+    toggleReactionPanel(messageId, room, addBtn);
+  });
+  bar.appendChild(addBtn);
+}
+
+function toggleReactionPanel(messageId, room, anchor) {
+  let panel = reactionPanelByMessage.get(messageId);
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.className = "reaction-panel";
+    REACTION_EMOJIS.forEach((emoji) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = emoji;
+      btn.addEventListener("click", (evt) => {
+        evt.stopPropagation();
+        toggleReaction(messageId, room, emoji);
+        panel?.classList.remove("open");
+      });
+      panel.appendChild(btn);
+    });
+    reactionPanelByMessage.set(messageId, panel);
+    document.body.appendChild(panel);
+  }
+  const rect = anchor.getBoundingClientRect();
+  panel.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
+  panel.style.top = `${Math.max(12, rect.top - 44)}px`;
+  panel.classList.toggle("open");
+}
+
+async function toggleReaction(messageId, room, emoji) {
+  if (!messageId || !emoji) return;
+  const clientId = getClientId();
+  const map = ensureReactionState(messageId);
+  const set = map.get(emoji) || new Set();
+  const has = set.has(clientId);
+  applyReactionDelta(messageId, emoji, clientId, !has);
+  renderReactionBar(messageId, room);
+  if (!useSupabase()) return;
+  const client = getSupabaseClient();
+  if (!client) return;
+  if (has) {
+    const { error } = await client
+      .from("message_reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("emoji", emoji)
+      .eq("client_id", clientId);
+    if (error) setStatus(String(error));
+  } else {
+    const { error } = await client.from("message_reactions").insert({
+      message_id: messageId,
+      room: normalizeRoom(room || state.currentRoom),
+      emoji,
+      client_id: clientId
+    });
+    if (error) setStatus(String(error));
+  }
+}
+
+async function loadReactionsForRoom(room) {
+  if (!useSupabase()) return;
+  const client = getSupabaseClient();
+  if (!client) return;
+  const normalized = normalizeRoom(room);
+  if (!normalized) return;
+  const { data, error } = await client
+    .from("message_reactions")
+    .select("message_id, emoji, client_id")
+    .eq("room", normalized);
+  if (error) {
+    setStatus(String(error));
+    return;
+  }
+  reactionsByMessage.clear();
+  (data || []).forEach((row) => {
+    applyReactionDelta(row.message_id, row.emoji, row.client_id, true);
+  });
+  reactionBarByMessage.forEach((_, messageId) => renderReactionBar(messageId, normalized));
+}
+
+function subscribeSupabaseReactions(room) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const normalized = normalizeRoom(room);
+  if (!normalized) return;
+  resetSupabaseReactionsChannel();
+  supabaseReactionsChannel = client
+    .channel(`reactions:${normalized}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "message_reactions", filter: `room=eq.${normalized}` },
+      (payload) => {
+        const row = payload.new || payload.old;
+        if (!row) return;
+        const add = payload.eventType === "INSERT";
+        applyReactionDelta(row.message_id, row.emoji, row.client_id, add);
+        renderReactionBar(row.message_id, normalized);
       }
     )
     .subscribe();
@@ -1195,6 +1385,9 @@ function renderRooms() {
 function renderMessages(list, { autoScroll = true } = {}) {
   audioManager.clearAll();
   messagesEl.innerHTML = "";
+  reactionBarByMessage.clear();
+  reactionPanelByMessage.forEach((panel) => panel.remove());
+  reactionPanelByMessage.clear();
   if (!list.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
@@ -1364,6 +1557,14 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   }
   if (cleanedText) {
     content.appendChild(text);
+  }
+  if (msg && msg.id) {
+    const reactionBar = document.createElement("div");
+    reactionBar.className = "reactions";
+    reactionBar.dataset.msgId = msg.id;
+    reactionBarByMessage.set(msg.id, reactionBar);
+    renderReactionBar(msg.id, msg.room || state.currentRoom);
+    content.appendChild(reactionBar);
   }
   body.appendChild(content);
   wrapper.appendChild(meta);
@@ -1576,6 +1777,8 @@ async function loadRoomMessages(room) {
   renderRooms();
   if (useSupabase()) {
     subscribeSupabaseRoom(room);
+    await loadReactionsForRoom(room);
+    subscribeSupabaseReactions(room);
     startPolling(room);
   }
 }
@@ -2048,6 +2251,20 @@ document.addEventListener("keydown", (evt) => {
   if (evt.key === "Escape" && !imageViewer.classList.contains("hidden")) {
     closeImageViewer();
   }
+  if (evt.key === "Escape") {
+    closeAllReactionPanels();
+  }
+});
+
+document.addEventListener("click", (evt) => {
+  const target = evt.target;
+  if (
+    target instanceof Element &&
+    (target.closest(".reaction-panel") || target.closest(".reaction-add"))
+  ) {
+    return;
+  }
+  closeAllReactionPanels();
 });
 
 document.addEventListener("visibilitychange", () => {
