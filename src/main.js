@@ -1313,6 +1313,12 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
     heart.textContent = "❤";
     nickSpan.appendChild(heart);
   }
+  if (nickText.trim().toLowerCase() === "ехидна") {
+    const crown = document.createElement("span");
+    crown.className = "nick-crown";
+    crown.textContent = "👑";
+    nickSpan.appendChild(crown);
+  }
   const timeSpan = document.createElement("span");
   timeSpan.className = "time";
   timeSpan.textContent = formatTime(msg.createdAtSec || getCreatedAtSec(msg));

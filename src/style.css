@@ -559,6 +559,12 @@ body.sidebar-open .sidebar-overlay {
   font-size: 12px;
   line-height: 1;
 }
+.nick-crown {
+  margin-left: 0;
+  color: #d6a800;
+  font-size: 12px;
+  line-height: 1;
+}
 .meta-left .nick {
   font-weight: 600;
 }
