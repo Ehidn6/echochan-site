@@ -844,6 +844,8 @@ body.theme-light .message .text {
   }
   .message-body.has-media {
     gap: 4px;
+    align-items: flex-start;
+    justify-content: flex-start;
   }
   .message-body.media-only {
     grid-template-columns: 1fr;
@@ -854,6 +856,9 @@ body.theme-light .message .text {
   .message .attachments {
     margin-bottom: 0;
     justify-items: start;
+    align-items: start;
+    flex: 0 0 140px;
+    max-width: 140px;
   }
   .message-body.media-only .youtube-embed {
     aspect-ratio: 18 / 9;
