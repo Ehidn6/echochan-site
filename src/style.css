@@ -248,6 +248,13 @@ body.sidebar-collapsed .sidebar {
   background: rgba(17, 17, 17, 0.9);
   border: 1px solid var(--border);
   backdrop-filter: blur(6px);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body.sidebar-open .sidebar-toggle {
+  left: calc(var(--sidebar-width) - 12px - 32px);
 }
 .sidebar-overlay {
   position: fixed;
