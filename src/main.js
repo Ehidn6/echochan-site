@@ -1220,9 +1220,15 @@ async function getRoomMessagesInternal(room, options = {}) {
     query = query.lt("created_at", new Date(before * 1000).toISOString());
   }
   if (latest) {
-    query = query.order("created_at", { ascending: false }).limit(limit);
+    query = query
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit);
   } else {
-    query = query.order("created_at", { ascending: true }).limit(limit);
+    query = query
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(limit);
   }
   const { data, error } = await query;
   if (error) throw new Error(error.message);
