@@ -553,6 +553,12 @@ body.sidebar-open .sidebar-overlay {
   align-items: center;
   gap: 8px;
 }
+.nick-heart {
+  margin-left: 4px;
+  color: #ff5b7a;
+  font-size: 12px;
+  line-height: 1;
+}
 .meta-left .nick {
   font-weight: 600;
 }

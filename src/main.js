@@ -1301,12 +1301,20 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   metaLeft.className = "meta-left";
   const nickSpan = document.createElement("span");
   nickSpan.className = "nick";
-  nickSpan.textContent = msg.nick || "Anonymous";
-  nickSpan.style.color = colorForNick(nickSpan.textContent);
+  const nickText = msg.nick || "Anonymous";
+  nickSpan.textContent = nickText;
+  nickSpan.style.color = colorForNick(nickText);
   const timeSpan = document.createElement("span");
   timeSpan.className = "time";
   timeSpan.textContent = formatTime(msg.createdAtSec || getCreatedAtSec(msg));
-  metaLeft.append(nickSpan, timeSpan);
+  metaLeft.append(nickSpan);
+  if (nickText.toLowerCase().includes("meh")) {
+    const heart = document.createElement("span");
+    heart.className = "nick-heart";
+    heart.textContent = "❤";
+    metaLeft.appendChild(heart);
+  }
+  metaLeft.appendChild(timeSpan);
   meta.appendChild(metaLeft);
   if (!msg.system) {
     const replyBtn = document.createElement("button");
