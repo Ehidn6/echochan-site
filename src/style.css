@@ -1,12 +1,12 @@
 :root {
   color-scheme: dark;
-  --bg: #111111;
-  --panel: #171717;
-  --panel-2: #1d1d1d;
-  --text: #e6e6e6;
-  --muted: #a0a0a0;
-  --accent: #d0d0d0;
-  --border: rgba(255, 255, 255, 0.08);
+  --bg: #171717;
+  --panel: #1f1f1f;
+  --panel-2: #262626;
+  --text: #ededed;
+  --muted: #b0b0b0;
+  --accent: #e0e0e0;
+  --border: rgba(255, 255, 255, 0.1);
   --sidebar-width: 260px;
 }
 body.theme-light {
