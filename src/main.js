@@ -1026,10 +1026,6 @@ function closeConfirm(result) {
 }
 
 function autoResizeTextarea() {
-  if (window.innerWidth <= 900) {
-    messageInput.style.height = "40px";
-    return;
-  }
   messageInput.style.height = "auto";
   const next = Math.max(messageInput.scrollHeight, MESSAGE_MIN_HEIGHT);
   messageInput.style.height = `${next}px`;
