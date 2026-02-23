@@ -378,6 +378,13 @@ function loadSettingsFromStorage() {
       settings = defaultSettings();
     }
   }
+  // Ensure shared Supabase defaults are always present
+  if (!settings.supabase_url || !String(settings.supabase_url).trim()) {
+    settings.supabase_url = DEFAULT_SUPABASE_URL;
+  }
+  if (!settings.supabase_anon_key || !String(settings.supabase_anon_key).trim()) {
+    settings.supabase_anon_key = DEFAULT_SUPABASE_ANON_KEY;
+  }
   settings.rooms = normalizeRooms(settings.rooms || []);
   if (!settings.max_payload_kb || settings.max_payload_kb < 6000) {
     settings.max_payload_kb = 6000;
