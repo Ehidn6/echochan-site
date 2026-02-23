@@ -1027,8 +1027,13 @@ function closeConfirm(result) {
 
 function autoResizeTextarea() {
   messageInput.style.height = "auto";
-  const next = Math.max(messageInput.scrollHeight, MESSAGE_MIN_HEIGHT);
+  const next = Math.min(
+    Math.max(messageInput.scrollHeight, MESSAGE_MIN_HEIGHT),
+    MESSAGE_MAX_HEIGHT
+  );
   messageInput.style.height = `${next}px`;
+  messageInput.style.overflowY =
+    messageInput.scrollHeight > MESSAGE_MAX_HEIGHT ? "auto" : "hidden";
 }
 
 function formatTime(createdAtSec) {
@@ -1950,6 +1955,8 @@ messageInput.addEventListener("paste", async (evt) => {
 });
 
 messageInput.addEventListener("input", autoResizeTextarea);
+messageInput.addEventListener("compositionend", autoResizeTextarea);
+messageInput.addEventListener("keyup", autoResizeTextarea);
 messagesEl.addEventListener("scroll", () => {
   state.isAtBottom = isMessagesAtBottom();
   updateJumpButton();
