@@ -1543,6 +1543,9 @@ async function loadState() {
   if (useSupabase()) {
     await syncPublicRooms();
     subscribeSupabaseRooms();
+    // Replace local rooms with shared Supabase rooms
+    state.settings.rooms = normalizeRooms(state.rooms);
+    await invoke("save_settings", { settings: state.settings });
   }
 
   if (JSON.stringify(normalizedRooms) !== JSON.stringify(snapshot.settings.rooms)) {
