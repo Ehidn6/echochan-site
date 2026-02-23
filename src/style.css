@@ -843,7 +843,7 @@ body.theme-light .message .text {
     bottom: 76px;
   }
   .message-body.has-media {
-    gap: 8px;
+    gap: 4px;
   }
   .message-body.media-only {
     grid-template-columns: 1fr;
@@ -859,7 +859,7 @@ body.theme-light .message .text {
     max-height: 220px;
   }
   .message .attachments img {
-    max-height: min(28vh, 200px);
+    max-height: min(22vh, 140px);
   }
   .youtube-embed {
     aspect-ratio: 16 / 9;
