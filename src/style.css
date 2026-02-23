@@ -647,7 +647,7 @@ body.theme-light .reply-snippet-inline:hover {
   border: none;
   background: transparent;
   color: var(--text);
-  font-size: 12px;
+  font-size: 16px;
   padding: 0;
   border-radius: 999px;
   cursor: pointer;
@@ -686,9 +686,10 @@ body.theme-light .reply-snippet-inline:hover {
   border: none;
   background: transparent;
   color: var(--text);
-  font-size: 22px;
+  font-size: 30px;
   cursor: pointer;
   padding: 6px;
+  line-height: 1;
 }
 .reaction-image {
   width: 30px;
