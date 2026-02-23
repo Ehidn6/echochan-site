@@ -243,7 +243,7 @@ body.sidebar-collapsed .sidebar {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
   left: calc(12px + env(safe-area-inset-left));
-  z-index: 70;
+  z-index: 1200;
   border-radius: 999px;
   background: rgba(17, 17, 17, 0.9);
   border: 1px solid var(--border);
@@ -256,7 +256,7 @@ body.sidebar-collapsed .sidebar {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
-  z-index: 15;
+  z-index: 1000;
   border: none;
 }
 body.sidebar-open .sidebar-overlay {
@@ -770,7 +770,7 @@ body.theme-light .message .text {
     position: fixed;
     inset: 0 auto calc(72px + env(safe-area-inset-bottom)) 0;
     width: min(78vw, 320px);
-    z-index: 20;
+    z-index: 1100;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     border-right: 1px solid var(--border);
@@ -799,13 +799,13 @@ body.theme-light .message .text {
     top: calc(10px + env(safe-area-inset-top));
     left: calc(12px + env(safe-area-inset-left));
     right: auto;
-    z-index: 120;
+    z-index: 1200;
   }
   body.sidebar-open .sidebar {
-    z-index: 30;
+    z-index: 1100;
   }
   body.sidebar-open .sidebar-toggle {
-    z-index: 120;
+    z-index: 1200;
   }
   body.sidebar-open .sidebar-overlay {
     opacity: 1;
