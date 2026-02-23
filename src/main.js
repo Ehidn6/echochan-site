@@ -52,6 +52,7 @@ const messageIndex = new Map();
 const reactionsByMessage = new Map();
 const reactionBarByMessage = new Map();
 const reactionPanelByMessage = new Map();
+const lastReactionsFetchByRoom = new Map();
 let supabaseClient = null;
 let supabaseChannel = null;
 let supabaseRoomsChannel = null;
@@ -1000,6 +1001,10 @@ async function loadReactionsForRoom(room) {
   if (!client) return;
   const normalized = normalizeRoom(room);
   if (!normalized) return;
+  const now = Date.now();
+  const lastFetch = lastReactionsFetchByRoom.get(normalized) || 0;
+  if (now - lastFetch < 10000) return;
+  lastReactionsFetchByRoom.set(normalized, now);
   const { data, error } = await client
     .from("message_reactions")
     .select("message_id, emoji, client_id")
@@ -1104,8 +1109,7 @@ function startPolling(room) {
   pollRoom = room;
   pollNewMessages(room);
   pollTimer = setInterval(() => pollNewMessages(room), 5000);
-  loadReactionsForRoom(room);
-  reactionsPollTimer = setInterval(() => loadReactionsForRoom(room), 5000);
+  reactionsPollTimer = setInterval(() => loadReactionsForRoom(room), 20000);
 }
 
 async function pollNewMessages(room) {
@@ -1832,8 +1836,9 @@ async function loadState() {
     if (elapsed < 400) {
       await new Promise((resolve) => setTimeout(resolve, 400 - elapsed));
     }
-    // Keep spinner until initial room messages loaded
-    while (true) {
+    // Keep spinner until initial room messages loaded, with a max wait
+    const waitUntil = Date.now() + 4000;
+    while (Date.now() < waitUntil) {
       const normalized = normalizeRoom(state.currentRoom);
       if (!state.isLoadingMessages && state.loadedRooms.has(normalized)) break;
       await new Promise((resolve) => requestAnimationFrame(resolve));
