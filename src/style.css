@@ -524,6 +524,14 @@ body.sidebar-open .sidebar-overlay {
 .meta-left .nick {
   font-weight: 600;
 }
+
+body.theme-light .meta-left .nick {
+  color: #2d8a5b;
+}
+
+body.theme-light .message .meta {
+  color: #6a645e;
+}
 .reply-btn {
   border: 1px solid var(--border);
   background: transparent;
