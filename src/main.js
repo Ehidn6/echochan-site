@@ -1810,10 +1810,6 @@ async function loadState() {
   }
   if (supabaseBucketInput) supabaseBucketInput.value = snapshot.settings.supabase_bucket || "echochan-images";
 
-  currentRoomEl.textContent = state.currentRoom;
-  renderRooms();
-  await loadRoomMessages(state.currentRoom);
-
   if (useSupabase()) {
     await syncPublicRooms();
     subscribeSupabaseRooms();
@@ -1821,6 +1817,9 @@ async function loadState() {
     state.settings.rooms = normalizeRooms(state.rooms);
     await invoke("save_settings", { settings: state.settings });
   }
+  currentRoomEl.textContent = state.currentRoom;
+  renderRooms();
+  await loadRoomMessages(state.currentRoom);
 
   if (JSON.stringify(normalizedRooms) !== JSON.stringify(snapshot.settings.rooms)) {
     state.settings.rooms = normalizedRooms;
