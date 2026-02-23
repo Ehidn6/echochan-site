@@ -870,9 +870,18 @@ body.theme-light .message .text {
     position: sticky;
     bottom: 0;
     z-index: 6;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
     gap: 8px;
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom)) 12px;
+    align-items: center;
+  }
+  .composer-inputs {
+    flex-direction: row;
+    align-items: center;
+  }
+  .reply-bar,
+  .inline-previews {
+    display: none;
   }
   .composer-actions {
     grid-auto-flow: column;
