@@ -26,6 +26,40 @@ body.theme-light .toast {
 body.theme-light .composer {
   background: rgba(242, 240, 236, 0.7);
 }
+body.theme-light .reply-bar {
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+}
+body.theme-light .reply-nick,
+body.theme-light .reply-snippet {
+  color: var(--text);
+}
+body.theme-light .reply-cancel {
+  color: var(--text);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+body.theme-light .reply-cancel:hover {
+  color: var(--text);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+body.theme-light .composer textarea {
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+}
+body.theme-light .composer textarea::placeholder {
+  color: rgba(0, 0, 0, 0.45);
+}
+body.theme-light .composer textarea::-webkit-input-placeholder {
+  color: rgba(0, 0, 0, 0.45);
+}
+body.theme-light .composer textarea::-moz-placeholder {
+  color: rgba(0, 0, 0, 0.45);
+  opacity: 1;
+}
+body.theme-light .composer textarea:-ms-input-placeholder {
+  color: rgba(0, 0, 0, 0.45);
+}
 body.theme-light button,
 body.theme-light .icon-btn {
   background: #f2f0ec;
@@ -560,6 +594,13 @@ body.theme-light .message .text {
   cursor: pointer;
 }
 .reply-snippet-inline:hover {
+  color: var(--text);
+}
+body.theme-light .reply-snippet-inline {
+  color: rgba(50, 45, 40, 0.85);
+  border-left-color: rgba(80, 76, 72, 0.55);
+}
+body.theme-light .reply-snippet-inline:hover {
   color: var(--text);
 }
 .message .text { white-space: pre-wrap; }
