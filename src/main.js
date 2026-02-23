@@ -503,7 +503,10 @@ function updateReplyBar() {
     return;
   }
   replyBar.classList.remove("hidden");
-  if (replyNick) replyNick.textContent = state.replyTo.nick;
+  if (replyNick) {
+    replyNick.textContent = state.replyTo.nick;
+    replyNick.style.color = colorForNick(state.replyTo.nick);
+  }
   if (replySnippet) replySnippet.textContent = state.replyTo.text || "";
 }
 
@@ -1308,12 +1311,6 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   timeSpan.className = "time";
   timeSpan.textContent = formatTime(msg.createdAtSec || getCreatedAtSec(msg));
   metaLeft.append(nickSpan);
-  if (nickText.toLowerCase().includes("meh")) {
-    const heart = document.createElement("span");
-    heart.className = "nick-heart";
-    heart.textContent = "❤";
-    nickSpan.appendChild(heart);
-  }
   metaLeft.appendChild(timeSpan);
   meta.appendChild(metaLeft);
   if (!msg.system) {
@@ -1337,7 +1334,10 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
     replyLine.className = "reply-snippet-inline";
     const replyNickText = msg.reply.nick || "Anonymous";
     const replyText = msg.reply.text || "";
-    replyLine.textContent = `${replyNickText}: ${replyText}`;
+    const replyNickSpan = document.createElement("span");
+    replyNickSpan.textContent = replyNickText;
+    replyNickSpan.style.color = colorForNick(replyNickText);
+    replyLine.append(replyNickSpan, `: ${replyText}`);
     replyLine.addEventListener("mouseenter", () => showReplyPreview(replyLine, msg.reply.id));
     replyLine.addEventListener("mouseleave", hideReplyPreview);
     replyLine.addEventListener("click", () => scrollToMessageId(msg.reply.id));
