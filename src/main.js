@@ -306,6 +306,7 @@ const npPlay = el("np-play");
 const npStop = el("np-stop");
 const npSwitch = el("np-switch");
 const toolbar = document.querySelector(".toolbar");
+const themeToggle = el("theme-toggle");
 
 const MESSAGE_MIN_HEIGHT = 44;
 const MESSAGE_MAX_HEIGHT = 220;
@@ -378,6 +379,19 @@ function loadSettingsFromStorage() {
 
 function saveSettingsToStorage(settings) {
   localStorage.setItem("echochan_settings", JSON.stringify(settings));
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle("theme-light", theme === "light");
+}
+
+function loadTheme() {
+  const raw = localStorage.getItem("echochan_theme");
+  return raw === "light" ? "light" : "dark";
+}
+
+function saveTheme(theme) {
+  localStorage.setItem("echochan_theme", theme);
 }
 
 function getCreatedAtSec(msg) {
@@ -1389,6 +1403,7 @@ function estimatePayloadKB(payload) {
 }
 
 async function loadState() {
+  applyTheme(loadTheme());
   state.settings = loadSettingsFromStorage();
   const snapshot = await invoke("get_state", {});
   state.settings = snapshot.settings;
@@ -1885,6 +1900,11 @@ npPlay?.addEventListener("click", () => {
 });
 npStop?.addEventListener("click", () => audioManager.stopCurrent());
 npSwitch?.addEventListener("click", () => audioManager.switchSource());
+themeToggle?.addEventListener("click", () => {
+  const next = document.body.classList.contains("theme-light") ? "dark" : "light";
+  applyTheme(next);
+  saveTheme(next);
+});
 document.addEventListener("keydown", (evt) => {
   if (evt.key === "Escape" && !confirmModal.classList.contains("hidden")) {
     closeConfirm(false);
