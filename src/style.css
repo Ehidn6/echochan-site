@@ -36,12 +36,6 @@ body.theme-light .icon-btn svg {
   stroke: var(--text);
 }
 
-body.theme-light .sidebar-toggle {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.2);
-  color: var(--text);
-}
-
 body.theme-light .toolbar::before {
   background: var(--bg);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
@@ -245,10 +239,6 @@ body.sidebar-collapsed .sidebar {
   left: calc(12px + env(safe-area-inset-left));
   z-index: 1200;
   border-radius: 999px;
-  background: #101010;
-  color: var(--text);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(6px);
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
