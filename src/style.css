@@ -11,13 +11,13 @@
 }
 body.theme-light {
   color-scheme: light;
-  --bg: #f3f3f2;
-  --panel: #ffffff;
-  --panel-2: #f5f4f2;
-  --text: #1b1b1b;
-  --muted: #6b6b6b;
-  --accent: #3a3a3a;
-  --border: rgba(0, 0, 0, 0.1);
+  --bg: #e9e7e3;
+  --panel: #f2f0ec;
+  --panel-2: #ebe7e1;
+  --text: #1f1f1f;
+  --muted: #6a655f;
+  --accent: #2f2a24;
+  --border: rgba(0, 0, 0, 0.08);
 }
 
 * { box-sizing: border-box; }
