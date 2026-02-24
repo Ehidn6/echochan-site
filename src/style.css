@@ -445,7 +445,7 @@ body.sidebar-open .sidebar-overlay {
 .messages > .empty-state,
 .day-separator {
   width: min(100%, 980px);
-  margin-left: auto;
+  margin-left: 0;
   margin-right: auto;
 }
 .empty-state {
@@ -589,6 +589,7 @@ body.sidebar-open .sidebar-overlay {
 .message-row {
   position: relative;
   display: block;
+  padding-left: 72px;
 }
 .message-avatar {
   width: 52px;
@@ -604,7 +605,7 @@ body.sidebar-open .sidebar-overlay {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   position: absolute;
-  left: -64px;
+  left: 0;
   top: 2px;
 }
 .message-avatar img {
@@ -958,6 +959,15 @@ body.theme-light .reaction-panel {
   #app {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
+  }
+  .message-row {
+    padding-left: 60px;
+  }
+  .message-avatar {
+    width: 44px;
+    height: 44px;
+    left: 0;
+    top: 0;
   }
   .main {
     margin-left: 0;
