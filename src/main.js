@@ -345,6 +345,7 @@ const nickInput = el("nick-input");
 const avatarInput = el("avatar-input");
 const avatarPreview = el("avatar-preview");
 const avatarClear = el("avatar-clear");
+const avatarFilename = el("avatar-filename");
 const maxImageInput = el("max-image-kb");
 const maxPayloadInput = el("max-payload-kb");
 const supabaseUploadToggle = el("supabase-upload-toggle");
@@ -380,6 +381,7 @@ let confirmResolver = null;
 let lastMessagesScrollTop = 0;
 let suppressToolbarAutoHide = false;
 let pendingAvatarData = null;
+let pendingAvatarName = "";
 const profileAvatarByNick = new Map();
 const profileFetchInFlight = new Set();
 
@@ -1871,6 +1873,7 @@ async function loadState() {
 
   if (nickInput) nickInput.value = snapshot.settings.nick;
   pendingAvatarData = snapshot.settings.avatar_data || snapshot.settings.avatar_url || "";
+  pendingAvatarName = "";
   renderAvatarPreview(pendingAvatarData);
   if (maxImageInput) maxImageInput.value = snapshot.settings.max_image_kb;
   if (maxPayloadInput) maxPayloadInput.value = snapshot.settings.max_payload_kb;
@@ -2194,6 +2197,9 @@ function renderAvatarPreview(dataUrl) {
     avatarPreview.removeAttribute("src");
     avatarPreview.style.visibility = "hidden";
   }
+  if (avatarFilename) {
+    avatarFilename.textContent = pendingAvatarName || "";
+  }
 }
 
 function getAvatarForNick(nick) {
@@ -2423,6 +2429,7 @@ async function handleFiles(files) {
 function openSettings() {
   settingsModal.classList.remove("hidden");
   pendingAvatarData = state.settings.avatar_data || state.settings.avatar_url || "";
+  pendingAvatarName = "";
   renderAvatarPreview(pendingAvatarData);
 }
 
@@ -2442,10 +2449,14 @@ async function saveSettings({ close = true } = {}) {
       state.settings.avatar_data = "";
       await upsertProfileAvatar(state.settings.nick, url);
       setStatus("Avatar updated.");
+      pendingAvatarName = "";
+      if (avatarInput) avatarInput.value = "";
     } else {
       state.settings.avatar_url = "";
       state.settings.avatar_data = "";
       await upsertProfileAvatar(state.settings.nick, "");
+      pendingAvatarName = "";
+      if (avatarInput) avatarInput.value = "";
     }
   } else {
     state.settings.avatar_data = nextAvatarData;
@@ -2505,19 +2516,20 @@ avatarInput?.addEventListener("change", async (evt) => {
   if (!file) return;
   try {
     pendingAvatarData = await buildAvatarDataUrl(file);
+    pendingAvatarName = file.name || "";
     renderAvatarPreview(pendingAvatarData);
     if (useSupabase()) {
       showToast("Avatar will sync after Save.", "info");
     }
   } catch (err) {
     showToast(String(err || "Failed to load avatar."), "error");
-  } finally {
-    avatarInput.value = "";
   }
 });
 avatarClear?.addEventListener("click", () => {
   pendingAvatarData = "";
+  pendingAvatarName = "";
   renderAvatarPreview("");
+  if (avatarInput) avatarInput.value = "";
 });
 nickInput?.addEventListener("blur", saveNickImmediate);
 nickInput?.addEventListener("change", saveNickImmediate);

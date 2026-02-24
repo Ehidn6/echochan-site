@@ -1314,6 +1314,14 @@ body.theme-light .theme-toggle .icon-sun {
   flex-direction: column;
   gap: 8px;
 }
+.avatar-filename {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .hint {
   color: var(--muted);
   font-size: 11px;
