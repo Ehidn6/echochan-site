@@ -445,7 +445,7 @@ body.sidebar-open .sidebar-overlay {
 .messages > .empty-state,
 .day-separator {
   width: min(100%, 980px);
-  margin-left: 0;
+  margin-left: auto;
   margin-right: auto;
 }
 .empty-state {
@@ -590,6 +590,7 @@ body.sidebar-open .sidebar-overlay {
   position: relative;
   display: block;
   padding-left: 72px;
+  padding-right: 72px;
 }
 .message-avatar {
   width: 52px;
@@ -962,6 +963,7 @@ body.theme-light .reaction-panel {
   }
   .message-row {
     padding-left: 60px;
+    padding-right: 60px;
   }
   .message-avatar {
     width: 44px;
