@@ -1206,6 +1206,7 @@ function insertMessage(msg) {
     if (removed?.id) messageIndex.delete(removed.id);
   }
   messagesByRoom.set(msg.room, list);
+  state.roomCounts[msg.room] = list.length;
   if (!state.lastCreatedAtByRoom) state.lastCreatedAtByRoom = new Map();
   updateLastCreatedAt(msg.room, msg);
   return true;
@@ -1961,27 +1962,31 @@ async function loadOlderMessages(room) {
   if (!page || !page.hasMore) return;
   state.isLoadingOlder = true;
   const prevHeight = messagesEl.scrollHeight;
-  const list = await invoke("get_room_messages", {
-    room: normalized,
-    options: { before: page.oldestCreatedAtSec, limit: 100 }
-  });
-  if (!list.length) {
-    page.hasMore = false;
-    state.isLoadingOlder = false;
-    return;
-  }
-  list.forEach((msg) => {
-    if (insertMessage(msg)) {
-      if (msg.room === state.currentRoom) {
-        addMessageToDom(msg, { sorted: true });
-      }
+  try {
+    const list = await invoke("get_room_messages", {
+      room: normalized,
+      options: { before: page.oldestCreatedAtSec, limit: 100 }
+    });
+    if (!list.length) {
+      page.hasMore = false;
+      return;
     }
-  });
-  page.oldestCreatedAtSec = getCreatedAtSec(list[0]) || page.oldestCreatedAtSec;
-  if (list.length < 100) page.hasMore = false;
-  const newHeight = messagesEl.scrollHeight;
-  messagesEl.scrollTop += newHeight - prevHeight;
-  state.isLoadingOlder = false;
+    list.forEach((msg) => {
+      if (insertMessage(msg)) {
+        if (msg.room === state.currentRoom) {
+          addMessageToDom(msg, { sorted: true });
+        }
+      }
+    });
+    page.oldestCreatedAtSec = getCreatedAtSec(list[0]) || page.oldestCreatedAtSec;
+    if (list.length < 100) page.hasMore = false;
+    const newHeight = messagesEl.scrollHeight;
+    messagesEl.scrollTop += newHeight - prevHeight;
+  } catch (err) {
+    setStatus(String(err));
+  } finally {
+    state.isLoadingOlder = false;
+  }
 }
 
 async function connectRelays() {
@@ -2109,7 +2114,6 @@ async function handleSend(text) {
     const inserted = insertMessage(msg);
     if (inserted) {
       const room = msg.room || state.currentRoom;
-      state.roomCounts[room] = (state.roomCounts[room] || 0) + 1;
       if (room === state.currentRoom) {
         const shouldAutoScroll = isMessagesAtBottom();
         addMessageToDom(msg, { sorted: true });
@@ -2684,8 +2688,6 @@ document.addEventListener("visibilitychange", () => {
 listen("new-message", (event) => {
   const msg = event.payload;
   if (!msg || !msg.room) return;
-  if (!state.roomCounts[msg.room]) state.roomCounts[msg.room] = 0;
-  state.roomCounts[msg.room] += 1;
   if (msg.room === state.currentRoom) {
     const shouldAutoScroll = isMessagesAtBottom();
     addMessageToDom(msg, { sorted: true });
