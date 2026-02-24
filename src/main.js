@@ -57,6 +57,7 @@ let supabaseClient = null;
 let supabaseChannel = null;
 let supabaseRoomsChannel = null;
 let supabaseReactionsChannel = null;
+let supabaseProfilesChannel = null;
 let pollTimer = null;
 let pollRoom = null;
 let reactionsPollTimer = null;
@@ -116,6 +117,13 @@ function resetSupabaseReactionsChannel() {
   if (!client || !supabaseReactionsChannel) return;
   client.removeChannel(supabaseReactionsChannel);
   supabaseReactionsChannel = null;
+}
+
+function resetSupabaseProfilesChannel() {
+  const client = getSupabaseClient();
+  if (!client || !supabaseProfilesChannel) return;
+  client.removeChannel(supabaseProfilesChannel);
+  supabaseProfilesChannel = null;
 }
 
 function supabaseRowToMessage(row) {
@@ -372,6 +380,8 @@ let confirmResolver = null;
 let lastMessagesScrollTop = 0;
 let suppressToolbarAutoHide = false;
 let pendingAvatarData = null;
+const profileAvatarByNick = new Map();
+const profileFetchInFlight = new Set();
 
 function showToast(text, variant = "info", timeoutMs = 6000) {
   if (!text) return;
@@ -391,6 +401,10 @@ function normalizeRoom(room) {
   return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
 }
 
+function normalizeNick(nick) {
+  return String(nick || "").trim().toLowerCase();
+}
+
 function normalizeRooms(list) {
   const out = [];
   const seen = new Set();
@@ -408,6 +422,7 @@ function defaultSettings() {
   return {
     nick: "Anonymous",
     avatar_data: "",
+    avatar_url: "",
     rooms: ["#echo"],
     max_image_kb: 200,
     max_payload_kb: 6000,
@@ -1048,6 +1063,33 @@ function subscribeSupabaseReactions(room) {
     .subscribe();
 }
 
+function subscribeSupabaseProfiles() {
+  const client = getSupabaseClient();
+  if (!client) return;
+  resetSupabaseProfilesChannel();
+  supabaseProfilesChannel = client
+    .channel("profiles")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "profiles" },
+      (payload) => {
+        const row = payload.new || payload.old;
+        if (!row) return;
+        const nickKey = normalizeNick(row.nick_key || row.nick || "");
+        if (!nickKey) return;
+        const avatarUrl = payload.eventType === "DELETE" ? "" : row.avatar_url || "";
+        profileAvatarByNick.set(nickKey, avatarUrl);
+        refreshMessageAvatarsForNick(nickKey);
+        if (nickKey === normalizeNick(state.settings?.nick)) {
+          state.settings.avatar_url = avatarUrl;
+          renderAvatarPreview(avatarUrl || state.settings.avatar_data);
+          invoke("save_settings", { settings: state.settings }).catch(() => null);
+        }
+      }
+    )
+    .subscribe();
+}
+
 function showStatusBanner(text, timeoutMs = 2500) {
   if (!statusBanner) return;
   statusBanner.textContent = text;
@@ -1653,17 +1695,9 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   if (!msg.system) {
     const avatar = document.createElement("div");
     avatar.className = "message-avatar";
-    if (state.settings?.avatar_data && nickText === state.settings.nick) {
-      const img = document.createElement("img");
-      img.src = state.settings.avatar_data;
-      img.alt = `${nickText} avatar`;
-      avatar.appendChild(img);
-    } else {
-      const initial = nickText.trim().charAt(0) || "?";
-      avatar.textContent = initial.toUpperCase();
-      avatar.style.background = colorForNick(nickText);
-    }
+    applyAvatarToElement(avatar, nickText);
     row.appendChild(avatar);
+    fetchProfileAvatar(nickText);
   }
   const main = document.createElement("div");
   main.className = "message-main";
@@ -1833,7 +1867,7 @@ async function loadState() {
   state.maxPayloadKB = snapshot.settings.max_payload_kb;
 
   if (nickInput) nickInput.value = snapshot.settings.nick;
-  pendingAvatarData = snapshot.settings.avatar_data || "";
+  pendingAvatarData = snapshot.settings.avatar_data || snapshot.settings.avatar_url || "";
   renderAvatarPreview(pendingAvatarData);
   if (maxImageInput) maxImageInput.value = snapshot.settings.max_image_kb;
   if (maxPayloadInput) maxPayloadInput.value = snapshot.settings.max_payload_kb;
@@ -1850,6 +1884,8 @@ async function loadState() {
   if (useSupabase()) {
     await syncPublicRooms();
     subscribeSupabaseRooms();
+    subscribeSupabaseProfiles();
+    fetchProfileAvatar(state.settings.nick);
     // Replace local rooms with shared Supabase rooms
     state.settings.rooms = normalizeRooms(state.rooms);
     await invoke("save_settings", { settings: state.settings });
@@ -1990,6 +2026,8 @@ async function handleCommand(text) {
     state.settings.nick = nick;
     nickInput.value = nick;
     await invoke("save_settings", { settings: state.settings });
+    fetchProfileAvatar(nick);
+    refreshMessageAvatarsForNick(normalizeNick(nick));
     addSystemMessage(`Nick changed to ${nick}.`);
     return;
   }
@@ -2155,6 +2193,86 @@ function renderAvatarPreview(dataUrl) {
   }
 }
 
+function getAvatarForNick(nick) {
+  const norm = normalizeNick(nick);
+  const selfNorm = normalizeNick(state.settings?.nick);
+  if (norm && selfNorm && norm === selfNorm) {
+    return state.settings?.avatar_data || state.settings?.avatar_url || "";
+  }
+  return profileAvatarByNick.get(norm) || "";
+}
+
+function applyAvatarToElement(avatarEl, nick) {
+  if (!avatarEl) return;
+  const url = getAvatarForNick(nick);
+  avatarEl.innerHTML = "";
+  if (url) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = `${nick} avatar`;
+    avatarEl.appendChild(img);
+    return;
+  }
+  const initial = String(nick || "?").trim().charAt(0) || "?";
+  avatarEl.textContent = initial.toUpperCase();
+  avatarEl.style.background = colorForNick(nick);
+}
+
+function refreshMessageAvatarsForNick(normNick) {
+  document.querySelectorAll(".message").forEach((wrapper) => {
+    const author = wrapper.dataset.author || "";
+    if (normalizeNick(author) !== normNick) return;
+    const avatarEl = wrapper.querySelector(".message-avatar");
+    applyAvatarToElement(avatarEl, author);
+  });
+}
+
+async function fetchProfileAvatar(nick) {
+  if (!useSupabase()) return;
+  const norm = normalizeNick(nick);
+  if (!norm || profileAvatarByNick.has(norm) || profileFetchInFlight.has(norm)) return;
+  profileFetchInFlight.add(norm);
+  try {
+    const client = getSupabaseClient();
+    if (!client) return;
+    const { data, error } = await client
+      .from("profiles")
+      .select("nick_key, nick, avatar_url")
+      .eq("nick_key", norm)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const avatarUrl = data?.avatar_url || "";
+    profileAvatarByNick.set(norm, avatarUrl);
+    refreshMessageAvatarsForNick(norm);
+    if (norm === normalizeNick(state.settings?.nick)) {
+      state.settings.avatar_url = avatarUrl;
+      renderAvatarPreview(avatarUrl || state.settings.avatar_data);
+    }
+  } catch (err) {
+    setStatus(String(err));
+  } finally {
+    profileFetchInFlight.delete(norm);
+  }
+}
+
+async function upsertProfileAvatar(nick, avatarUrl) {
+  if (!useSupabase()) return;
+  const client = getSupabaseClient();
+  if (!client) return;
+  const norm = normalizeNick(nick);
+  if (!norm) return;
+  const payload = {
+    nick_key: norm,
+    nick,
+    avatar_url: avatarUrl || null,
+    updated_at: new Date().toISOString()
+  };
+  const { error } = await client.from("profiles").upsert(payload, { onConflict: "nick_key" });
+  if (error) throw new Error(error.message);
+  profileAvatarByNick.set(norm, avatarUrl || "");
+  refreshMessageAvatarsForNick(norm);
+}
+
 async function buildAvatarDataUrl(file) {
   const bitmap = await createImageBitmap(file);
   const size = 128;
@@ -2301,7 +2419,7 @@ async function handleFiles(files) {
 
 function openSettings() {
   settingsModal.classList.remove("hidden");
-  pendingAvatarData = state.settings.avatar_data || "";
+  pendingAvatarData = state.settings.avatar_data || state.settings.avatar_url || "";
   renderAvatarPreview(pendingAvatarData);
 }
 
@@ -2312,7 +2430,23 @@ function closeSettings() {
 
 async function saveSettings({ close = true } = {}) {
   state.settings.nick = nickInput?.value.trim() || state.settings.nick;
-  state.settings.avatar_data = pendingAvatarData || "";
+  const nextAvatarData = pendingAvatarData || "";
+  if (useSupabase()) {
+    if (nextAvatarData) {
+      setStatus("Uploading avatar...");
+      const url = await uploadImageToSupabase(nextAvatarData, `${state.settings.nick}_avatar`);
+      state.settings.avatar_url = url;
+      state.settings.avatar_data = "";
+      await upsertProfileAvatar(state.settings.nick, url);
+      setStatus("Avatar updated.");
+    } else {
+      state.settings.avatar_url = "";
+      state.settings.avatar_data = "";
+      await upsertProfileAvatar(state.settings.nick, "");
+    }
+  } else {
+    state.settings.avatar_data = nextAvatarData;
+  }
   const nextImageKb = Number(maxImageInput?.value) || state.maxImageKB;
   const nextPayloadKb = Number(maxPayloadInput?.value) || state.maxPayloadKB;
   state.settings.max_image_kb = Math.max(20, Math.min(300, nextImageKb));
@@ -2326,6 +2460,7 @@ async function saveSettings({ close = true } = {}) {
   state.maxImageKB = state.settings.max_image_kb;
   state.maxPayloadKB = state.settings.max_payload_kb;
   await invoke("save_settings", { settings: state.settings });
+  refreshMessageAvatarsForNick(normalizeNick(state.settings.nick));
   if (close) {
     closeSettings();
   }
@@ -2365,6 +2500,9 @@ avatarInput?.addEventListener("change", async (evt) => {
   try {
     pendingAvatarData = await buildAvatarDataUrl(file);
     renderAvatarPreview(pendingAvatarData);
+    if (useSupabase()) {
+      showToast("Avatar will sync after Save.", "info");
+    }
   } catch (err) {
     showToast(String(err || "Failed to load avatar."), "error");
   } finally {

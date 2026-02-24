@@ -587,24 +587,25 @@ body.sidebar-open .sidebar-overlay {
   line-height: 1;
 }
 .message-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  position: relative;
+  display: block;
 }
 .message-avatar {
-  width: 38px;
-  height: 38px;
+  width: 52px;
+  height: 52px;
   border-radius: 999px;
   background: #1b1b1b;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  flex: 0 0 auto;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  position: absolute;
+  left: -64px;
+  top: 2px;
 }
 .message-avatar img {
   width: 100%;
@@ -613,7 +614,6 @@ body.sidebar-open .sidebar-overlay {
   display: block;
 }
 .message-main {
-  flex: 1;
   min-width: 0;
 }
 .message.grouped .message-avatar {
