@@ -1586,6 +1586,14 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
     crown.textContent = "👑";
     nickSpan.appendChild(crown);
   }
+  if (nickText.trim().toLowerCase() === "goldy") {
+    const badge = document.createElement("img");
+    badge.className = "nick-badge";
+    badge.src = "/badges/goldy.webp";
+    badge.alt = "Goldy";
+    badge.loading = "lazy";
+    nickSpan.appendChild(badge);
+  }
   const timeSpan = document.createElement("span");
   timeSpan.className = "time";
   timeSpan.textContent = formatTime(msg.createdAtSec || getCreatedAtSec(msg));
