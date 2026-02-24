@@ -22,7 +22,8 @@ const REACTION_EMOJIS = [
   "img:reactions/r19.webp",
   "img:reactions/r20.webp",
   "img:reactions/r21.webp",
-  "img:reactions/r22.webp"
+  "img:reactions/r22.webp",
+  "img:reactions/ivri.jpg"
 ];
 
 const el = (id) => document.getElementById(id);
@@ -2440,23 +2441,34 @@ function closeSettings() {
 
 async function saveSettings({ close = true } = {}) {
   state.settings.nick = nickInput?.value.trim() || state.settings.nick;
-  const nextAvatarData = pendingAvatarData || "";
+  const previewData =
+    avatarPreview?.src && avatarPreview.src.startsWith("data:image/")
+      ? avatarPreview.src
+      : "";
+  const nextAvatarData = pendingAvatarData || previewData || "";
   if (useSupabase()) {
-    if (nextAvatarData) {
-      setStatus("Uploading avatar...");
-      const url = await uploadImageToSupabase(nextAvatarData, `${state.settings.nick}_avatar`);
-      state.settings.avatar_url = url;
-      state.settings.avatar_data = "";
-      await upsertProfileAvatar(state.settings.nick, url);
-      setStatus("Avatar updated.");
-      pendingAvatarName = "";
-      if (avatarInput) avatarInput.value = "";
-    } else {
-      state.settings.avatar_url = "";
-      state.settings.avatar_data = "";
-      await upsertProfileAvatar(state.settings.nick, "");
-      pendingAvatarName = "";
-      if (avatarInput) avatarInput.value = "";
+    try {
+      if (nextAvatarData) {
+        setStatus("Uploading avatar...");
+        showToast("Uploading avatar...", "info");
+        const url = await uploadImageToSupabase(nextAvatarData, `${state.settings.nick}_avatar`);
+        state.settings.avatar_url = url;
+        state.settings.avatar_data = "";
+        await upsertProfileAvatar(state.settings.nick, url);
+        setStatus("Avatar updated.");
+        showToast("Avatar updated.", "info");
+        pendingAvatarName = "";
+        if (avatarInput) avatarInput.value = "";
+      } else {
+        state.settings.avatar_url = "";
+        state.settings.avatar_data = "";
+        await upsertProfileAvatar(state.settings.nick, "");
+        pendingAvatarName = "";
+        if (avatarInput) avatarInput.value = "";
+      }
+    } catch (err) {
+      setStatus(String(err));
+      showToast(String(err || "Avatar upload failed."), "error");
     }
   } else {
     state.settings.avatar_data = nextAvatarData;
