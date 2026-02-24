@@ -23,7 +23,8 @@ const REACTION_EMOJIS = [
   "img:reactions/r20.webp",
   "img:reactions/r21.webp",
   "img:reactions/r22.webp",
-  "img:reactions/ivri.jpg"
+  "img:reactions/ivri.jpg",
+  "img:reactions/waaa.png"
 ];
 
 const el = (id) => document.getElementById(id);
