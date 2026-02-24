@@ -588,11 +588,11 @@ body.sidebar-open .sidebar-overlay {
 }
 .nick-badge {
   margin-left: 6px;
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
   border-radius: 6px;
   object-fit: cover;
-  vertical-align: -3px;
+  vertical-align: -5px;
 }
 .meta-left .nick {
   font-weight: 600;
