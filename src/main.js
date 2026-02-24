@@ -386,6 +386,8 @@ let pendingAvatarData = null;
 let pendingAvatarName = "";
 const profileAvatarByNick = new Map();
 const profileFetchInFlight = new Set();
+let roomCountsTimer = null;
+let roomCountsInFlight = false;
 
 function showToast(text, variant = "info", timeoutMs = 6000) {
   if (!text) return;
@@ -420,6 +422,36 @@ function normalizeRooms(list) {
     }
   }
   return out;
+}
+
+async function refreshRoomCounts() {
+  if (!useSupabase()) return;
+  if (roomCountsInFlight) return;
+  const client = getSupabaseClient();
+  if (!client) return;
+  const rooms = normalizeRooms(state.rooms || []);
+  if (!rooms.length) return;
+  roomCountsInFlight = true;
+  try {
+    const updates = await Promise.all(
+      rooms.map(async (room) => {
+        const { count, error } = await client
+          .from("messages")
+          .select("id", { count: "exact", head: true })
+          .eq("room", room);
+        if (error) throw error;
+        return [room, count || 0];
+      })
+    );
+    updates.forEach(([room, count]) => {
+      state.roomCounts[room] = count;
+    });
+    renderRooms();
+  } catch (err) {
+    setStatus(String(err));
+  } finally {
+    roomCountsInFlight = false;
+  }
 }
 
 function defaultSettings() {
@@ -1250,6 +1282,7 @@ async function addRoomInternal(room) {
         setStatus(String(error));
       } else {
         await syncPublicRooms();
+        await refreshRoomCounts();
       }
     }
   }
@@ -1264,6 +1297,9 @@ async function removeRoomInternal(room) {
   state.settings.rooms = state.settings.rooms.filter((r) => r !== normalized);
   saveSettingsToStorage(state.settings);
   resubscribeRelays();
+  if (useSupabase()) {
+    await refreshRoomCounts();
+  }
 }
 
 async function getRoomMessagesInternal(room, options = {}) {
@@ -1895,6 +1931,9 @@ async function loadState() {
     subscribeSupabaseRooms();
     subscribeSupabaseProfiles();
     fetchProfileAvatar(state.settings.nick);
+    await refreshRoomCounts();
+    if (roomCountsTimer) clearInterval(roomCountsTimer);
+    roomCountsTimer = setInterval(() => refreshRoomCounts(), 20000);
     // Replace local rooms with shared Supabase rooms
     state.settings.rooms = normalizeRooms(state.rooms);
     await invoke("save_settings", { settings: state.settings });
