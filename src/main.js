@@ -1859,6 +1859,9 @@ async function loadState() {
   state.settings = loadSettingsFromStorage();
   const snapshot = await invoke("get_state", {});
   state.settings = snapshot.settings;
+  state.settings.supabase_url = DEFAULT_SUPABASE_URL;
+  state.settings.supabase_anon_key = DEFAULT_SUPABASE_ANON_KEY;
+  state.settings.supabase_bucket = "echochan-images";
   const normalizedRooms = normalizeRooms(snapshot.settings.rooms);
   state.rooms = normalizedRooms;
   state.roomCounts = snapshot.counts || {};
@@ -2451,10 +2454,13 @@ async function saveSettings({ close = true } = {}) {
   const nextPayloadKb = Number(maxPayloadInput?.value) || state.maxPayloadKB;
   state.settings.max_image_kb = Math.max(20, Math.min(300, nextImageKb));
   state.settings.max_payload_kb = Math.max(60, Math.min(8000, nextPayloadKb));
-  state.settings.supabase_upload = !!supabaseUploadToggle?.checked;
-  state.settings.supabase_url = supabaseUrlInput?.value.trim() || "";
-  state.settings.supabase_anon_key = supabaseAnonKeyInput?.value.trim() || "";
-  state.settings.supabase_bucket = supabaseBucketInput?.value.trim() || "echochan-images";
+  if (supabaseUploadToggle) {
+    state.settings.supabase_upload = !!supabaseUploadToggle.checked;
+  }
+  // Force shared Supabase config from code defaults (no per-user fields).
+  state.settings.supabase_url = DEFAULT_SUPABASE_URL;
+  state.settings.supabase_anon_key = DEFAULT_SUPABASE_ANON_KEY;
+  state.settings.supabase_bucket = "echochan-images";
   if (maxImageInput) maxImageInput.value = String(state.settings.max_image_kb);
   if (maxPayloadInput) maxPayloadInput.value = String(state.settings.max_payload_kb);
   state.maxImageKB = state.settings.max_image_kb;
