@@ -586,6 +586,39 @@ body.sidebar-open .sidebar-overlay {
   font-size: 12px;
   line-height: 1;
 }
+.message-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.message-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: #1b1b1b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.message-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.message-main {
+  flex: 1;
+  min-width: 0;
+}
+.message.grouped .message-avatar {
+  visibility: hidden;
+}
 .nick-badge {
   margin-left: 6px;
   width: 34px;
@@ -1250,6 +1283,36 @@ body.theme-light .theme-toggle .icon-sun {
   padding-top: 8px;
   padding-bottom: 8px;
   z-index: 2;
+}
+.avatar-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.avatar-preview {
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+}
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .hint {
   color: var(--muted);

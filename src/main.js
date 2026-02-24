@@ -334,6 +334,9 @@ const confirmBody = el("confirm-body");
 const confirmOk = el("confirm-ok");
 const confirmCancel = el("confirm-cancel");
 const nickInput = el("nick-input");
+const avatarInput = el("avatar-input");
+const avatarPreview = el("avatar-preview");
+const avatarClear = el("avatar-clear");
 const maxImageInput = el("max-image-kb");
 const maxPayloadInput = el("max-payload-kb");
 const supabaseUploadToggle = el("supabase-upload-toggle");
@@ -368,6 +371,7 @@ const MESSAGE_FLOW_REVERSE = false;
 let confirmResolver = null;
 let lastMessagesScrollTop = 0;
 let suppressToolbarAutoHide = false;
+let pendingAvatarData = null;
 
 function showToast(text, variant = "info", timeoutMs = 6000) {
   if (!text) return;
@@ -403,6 +407,7 @@ function normalizeRooms(list) {
 function defaultSettings() {
   return {
     nick: "Anonymous",
+    avatar_data: "",
     rooms: ["#echo"],
     max_image_kb: 200,
     max_payload_kb: 6000,
@@ -674,6 +679,7 @@ function setMetaVisibility(wrapper, show) {
   const meta = wrapper.querySelector(".meta");
   if (!meta) return;
   meta.classList.toggle("compact", !show);
+  wrapper.classList.toggle("grouped", !show);
 }
 
 function recomputeGrouping(wrapper) {
@@ -1642,7 +1648,26 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
     content.appendChild(reactionBar);
   }
   body.appendChild(content);
-  wrapper.appendChild(meta);
+  const row = document.createElement("div");
+  row.className = "message-row";
+  if (!msg.system) {
+    const avatar = document.createElement("div");
+    avatar.className = "message-avatar";
+    if (state.settings?.avatar_data && nickText === state.settings.nick) {
+      const img = document.createElement("img");
+      img.src = state.settings.avatar_data;
+      img.alt = `${nickText} avatar`;
+      avatar.appendChild(img);
+    } else {
+      const initial = nickText.trim().charAt(0) || "?";
+      avatar.textContent = initial.toUpperCase();
+      avatar.style.background = colorForNick(nickText);
+    }
+    row.appendChild(avatar);
+  }
+  const main = document.createElement("div");
+  main.className = "message-main";
+  main.appendChild(meta);
   const mediaColumn = document.createElement("div");
   mediaColumn.className = "attachments";
   const youtubeEmbed = youtubeId
@@ -1710,7 +1735,9 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   if (hasMedia) {
     body.insertBefore(mediaColumn, content);
   }
-  wrapper.appendChild(body);
+  main.appendChild(body);
+  row.appendChild(main);
+  wrapper.appendChild(row);
   if (!showMeta) {
     setMetaVisibility(wrapper, false);
   }
@@ -1806,6 +1833,8 @@ async function loadState() {
   state.maxPayloadKB = snapshot.settings.max_payload_kb;
 
   if (nickInput) nickInput.value = snapshot.settings.nick;
+  pendingAvatarData = snapshot.settings.avatar_data || "";
+  renderAvatarPreview(pendingAvatarData);
   if (maxImageInput) maxImageInput.value = snapshot.settings.max_image_kb;
   if (maxPayloadInput) maxPayloadInput.value = snapshot.settings.max_payload_kb;
   if (supabaseUploadToggle) supabaseUploadToggle.checked = !!snapshot.settings.supabase_upload;
@@ -2106,6 +2135,41 @@ function toMB(bytes) {
   return bytes / (1024 * 1024);
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Failed to read file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAvatarPreview(dataUrl) {
+  if (!avatarPreview) return;
+  if (dataUrl) {
+    avatarPreview.src = dataUrl;
+    avatarPreview.style.visibility = "visible";
+  } else {
+    avatarPreview.removeAttribute("src");
+    avatarPreview.style.visibility = "hidden";
+  }
+}
+
+async function buildAvatarDataUrl(file) {
+  const bitmap = await createImageBitmap(file);
+  const size = 128;
+  const side = Math.min(bitmap.width, bitmap.height);
+  const sx = Math.max(0, Math.floor((bitmap.width - side) / 2));
+  const sy = Math.max(0, Math.floor((bitmap.height - side) / 2));
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = size;
+  canvas.height = size;
+  ctx.clearRect(0, 0, size, size);
+  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, size, size);
+  return canvas.toDataURL("image/webp", 0.85);
+}
+
 function inferAttachmentMime(att) {
   const raw = String(att?.mime || "").toLowerCase();
   if (raw) return raw;
@@ -2179,6 +2243,31 @@ async function handleFiles(files) {
       break;
     }
     try {
+    if (file?.type === "image/gif") {
+      if (state.settings.supabase_upload) {
+        setStatus("Uploading image...");
+        const url = await uploadFileToSupabase(file);
+        state.attachments.push({
+          kind: "link",
+          mime: file.type,
+          data: url,
+          size: file.size,
+          name: file.name || "image.gif"
+        });
+        setStatus("Image uploaded.");
+      } else {
+        const dataUrl = await readFileAsDataUrl(file);
+        state.attachments.push({
+          kind: "inline",
+          mime: file.type,
+          data: dataUrl,
+          size: file.size,
+          name: file.name || "image.gif"
+        });
+      }
+      updateInlinePreviews();
+      continue;
+    }
     if (isImageFile(file)) {
       const att = await processImage(file, 1280, state.maxImageKB);
       if (state.settings.supabase_upload) {
@@ -2212,6 +2301,8 @@ async function handleFiles(files) {
 
 function openSettings() {
   settingsModal.classList.remove("hidden");
+  pendingAvatarData = state.settings.avatar_data || "";
+  renderAvatarPreview(pendingAvatarData);
 }
 
 function closeSettings() {
@@ -2221,6 +2312,7 @@ function closeSettings() {
 
 async function saveSettings({ close = true } = {}) {
   state.settings.nick = nickInput?.value.trim() || state.settings.nick;
+  state.settings.avatar_data = pendingAvatarData || "";
   const nextImageKb = Number(maxImageInput?.value) || state.maxImageKB;
   const nextPayloadKb = Number(maxPayloadInput?.value) || state.maxPayloadKB;
   state.settings.max_image_kb = Math.max(20, Math.min(300, nextImageKb));
@@ -2267,6 +2359,22 @@ connectBtn.addEventListener("click", async () => {
 settingsBtn.addEventListener("click", openSettings);
 settingsClose.addEventListener("click", closeSettings);
 settingsSave.addEventListener("click", saveSettings);
+avatarInput?.addEventListener("change", async (evt) => {
+  const file = evt.target.files?.[0];
+  if (!file) return;
+  try {
+    pendingAvatarData = await buildAvatarDataUrl(file);
+    renderAvatarPreview(pendingAvatarData);
+  } catch (err) {
+    showToast(String(err || "Failed to load avatar."), "error");
+  } finally {
+    avatarInput.value = "";
+  }
+});
+avatarClear?.addEventListener("click", () => {
+  pendingAvatarData = "";
+  renderAvatarPreview("");
+});
 nickInput?.addEventListener("blur", saveNickImmediate);
 nickInput?.addEventListener("change", saveNickImmediate);
 settingsModal.addEventListener("click", (evt) => {
