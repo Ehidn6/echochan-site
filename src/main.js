@@ -378,6 +378,8 @@ const themeToggle = el("theme-toggle");
 const MESSAGE_MIN_HEIGHT = 44;
 const MESSAGE_MAX_HEIGHT = 220;
 const MESSAGE_FLOW_REVERSE = false;
+const LAZY_PLACEHOLDER =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 let confirmResolver = null;
 let lastMessagesScrollTop = 0;
@@ -388,6 +390,68 @@ const profileAvatarByNick = new Map();
 const profileFetchInFlight = new Set();
 let roomCountsTimer = null;
 let roomCountsInFlight = false;
+
+const lazyMediaObserver =
+  typeof IntersectionObserver !== "undefined"
+    ? new IntersectionObserver(
+        (entries, observer) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const target = entry.target;
+            const src = target?.dataset?.src;
+            if (!src) {
+              observer.unobserve(target);
+              return;
+            }
+            if (target.tagName === "IFRAME") {
+              target.src = src;
+            } else {
+              target.src = src;
+            }
+            if (target.dataset.lazyType === "youtube") {
+              registerYouTubePlayer(
+                target,
+                target.dataset.lazyTitle || "YouTube"
+              );
+            }
+            observer.unobserve(target);
+          });
+        },
+        {
+          root: messagesEl || null,
+          rootMargin: "200px 0px"
+        }
+      )
+    : null;
+
+function observeLazyMedia(target, src, { type, title } = {}) {
+  if (!target || !src) return;
+  if (!lazyMediaObserver) {
+    if (target.tagName === "IFRAME") {
+      target.loading = "lazy";
+      target.src = src;
+      if (type === "youtube") {
+        registerYouTubePlayer(target, title || "YouTube");
+      }
+    } else {
+      target.loading = "lazy";
+      target.decoding = "async";
+      target.src = src;
+    }
+    return;
+  }
+  target.dataset.src = src;
+  if (type) target.dataset.lazyType = type;
+  if (title) target.dataset.lazyTitle = title;
+  if (target.tagName === "IMG") {
+    target.loading = "lazy";
+    target.decoding = "async";
+    target.src = LAZY_PLACEHOLDER;
+  } else if (target.tagName === "IFRAME") {
+    target.loading = "lazy";
+  }
+  lazyMediaObserver.observe(target);
+}
 
 function showToast(text, variant = "info", timeoutMs = 6000) {
   if (!text) return;
@@ -964,6 +1028,8 @@ function renderReactionBar(messageId, room) {
       const img = document.createElement("img");
       img.className = "reaction-image";
       img.alt = "reaction";
+      img.loading = "lazy";
+      img.decoding = "async";
       img.src = `/${emoji.slice(4)}`;
       btn.appendChild(img);
       const countSpan = document.createElement("span");
@@ -1002,6 +1068,8 @@ function toggleReactionPanel(messageId, room, anchor) {
         const img = document.createElement("img");
         img.className = "reaction-image";
         img.alt = "reaction";
+        img.loading = "lazy";
+        img.decoding = "async";
         img.src = `/${emoji.slice(4)}`;
         btn.appendChild(img);
       } else {
@@ -1748,19 +1816,21 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
   main.appendChild(meta);
   const mediaColumn = document.createElement("div");
   mediaColumn.className = "attachments";
+  const ytTitle = stripEmbedLinks(msg.text) || "YouTube";
   const youtubeEmbed = youtubeId
     ? (() => {
         const embed = document.createElement("div");
         embed.className = "youtube-embed";
         const iframe = document.createElement("iframe");
         const origin = encodeURIComponent(window.location.origin);
-        iframe.src = `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&origin=${origin}&playsinline=1`;
+        const youtubeSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&origin=${origin}&playsinline=1`;
         iframe.title = "YouTube video";
         iframe.allow =
           "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
         iframe.referrerPolicy = "origin-when-cross-origin";
         iframe.allowFullscreen = true;
         iframe.id = `yt-${msg.id || randomId()}`;
+        observeLazyMedia(iframe, youtubeSrc, { type: "youtube", title: ytTitle });
         embed.appendChild(iframe);
         return embed;
       })()
@@ -1770,12 +1840,12 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
         const embed = document.createElement("div");
         embed.className = "spotify-embed";
         const iframe = document.createElement("iframe");
-        iframe.src = `https://open.spotify.com/embed/${spotify.type}/${spotify.id}`;
+        const spotifySrc = `https://open.spotify.com/embed/${spotify.type}/${spotify.id}`;
         iframe.title = "Spotify";
         iframe.allow = "autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture";
-        iframe.loading = "lazy";
         iframe.referrerPolicy = "origin-when-cross-origin";
         iframe.id = `sp-${msg.id || randomId()}`;
+        observeLazyMedia(iframe, spotifySrc);
         embed.appendChild(iframe);
         return embed;
       })()
@@ -1785,12 +1855,12 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
         const embed = document.createElement("div");
         embed.className = "yandex-embed";
         const iframe = document.createElement("iframe");
-        iframe.src = yandexSrc;
+        const yandexEmbedSrc = yandexSrc;
         iframe.title = "Yandex Music";
         iframe.allow = "autoplay; clipboard-write; encrypted-media";
-        iframe.loading = "lazy";
         iframe.referrerPolicy = "origin-when-cross-origin";
         iframe.id = `ym-${msg.id || randomId()}`;
+        observeLazyMedia(iframe, yandexEmbedSrc);
         embed.appendChild(iframe);
         return embed;
       })()
@@ -1800,9 +1870,9 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
       const mime = inferAttachmentMime(att);
       if (mime.startsWith("image/")) {
         const img = document.createElement("img");
-        img.src = att.data;
         img.alt = "attachment";
         img.addEventListener("click", () => openImageViewer(att.data));
+        observeLazyMedia(img, att.data);
         mediaColumn.appendChild(img);
       }
     });
@@ -1839,12 +1909,6 @@ function addMessageToDom(msg, { sorted = false, showMeta = true } = {}) {
     recomputeGrouping(findNextMessageEl(wrapper));
   } else {
     messagesEl.appendChild(wrapper);
-  }
-  if (youtubeEmbed) {
-    const iframe = youtubeEmbed.querySelector("iframe");
-    if (iframe) {
-      registerYouTubePlayer(iframe, stripEmbedLinks(msg.text) || "YouTube");
-    }
   }
   if (spotifyEmbed) {
     const iframe = spotifyEmbed.querySelector("iframe");
@@ -1934,16 +1998,20 @@ async function loadState() {
     subscribeSupabaseRooms();
     subscribeSupabaseProfiles();
     fetchProfileAvatar(state.settings.nick);
-    await refreshRoomCounts();
     if (roomCountsTimer) clearInterval(roomCountsTimer);
     roomCountsTimer = setInterval(() => refreshRoomCounts(), 20000);
     // Replace local rooms with shared Supabase rooms
     state.settings.rooms = normalizeRooms(state.rooms);
-    await invoke("save_settings", { settings: state.settings });
+    invoke("save_settings", { settings: state.settings }).catch((err) =>
+      setStatus(String(err))
+    );
   }
   currentRoomEl.textContent = state.currentRoom;
   renderRooms();
   await loadRoomMessages(state.currentRoom);
+  if (useSupabase()) {
+    refreshRoomCounts();
+  }
 
   if (JSON.stringify(normalizedRooms) !== JSON.stringify(snapshot.settings.rooms)) {
     state.settings.rooms = normalizedRooms;
@@ -2264,8 +2332,8 @@ function applyAvatarToElement(avatarEl, nick) {
   avatarEl.innerHTML = "";
   if (url) {
     const img = document.createElement("img");
-    img.src = url;
     img.alt = `${nick} avatar`;
+    observeLazyMedia(img, url);
     avatarEl.appendChild(img);
     return;
   }
