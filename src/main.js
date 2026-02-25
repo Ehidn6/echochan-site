@@ -440,7 +440,8 @@ async function refreshRoomCounts() {
           .select("id", { count: "exact", head: true })
           .eq("room", room);
         if (error) throw error;
-        return [room, count || 0];
+        const safeCount = Math.min(count || 0, 500);
+        return [room, safeCount];
       })
     );
     updates.forEach(([room, count]) => {
@@ -1238,7 +1239,9 @@ function insertMessage(msg) {
     if (removed?.id) messageIndex.delete(removed.id);
   }
   messagesByRoom.set(msg.room, list);
-  state.roomCounts[msg.room] = list.length;
+  if (!useSupabase()) {
+    state.roomCounts[msg.room] = list.length;
+  }
   if (!state.lastCreatedAtByRoom) state.lastCreatedAtByRoom = new Map();
   updateLastCreatedAt(msg.room, msg);
   return true;
@@ -1982,7 +1985,6 @@ async function loadRoomMessages(room) {
   });
   state.loadedRooms.add(normalizedRoom);
   state.isLoadingMessages = false;
-  state.roomCounts[room] = list.length;
   renderMessages(list);
   renderRooms();
   if (useSupabase()) {
