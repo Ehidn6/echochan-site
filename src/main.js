@@ -55,6 +55,7 @@ const reactionsByMessage = new Map();
 const reactionBarByMessage = new Map();
 const reactionPanelByMessage = new Map();
 const lastReactionsFetchByRoom = new Map();
+const unreadByRoom = new Map();
 let supabaseClient = null;
 let supabaseChannel = null;
 let supabaseRoomsChannel = null;
@@ -63,6 +64,12 @@ let supabaseProfilesChannel = null;
 let pollTimer = null;
 let pollRoom = null;
 let reactionsPollTimer = null;
+let faviconLink = null;
+let faviconBaseHref = "";
+let faviconBaseImage = null;
+let faviconReady = null;
+let lastBadgeCount = 0;
+const baseTitle = document.title || "Echochan";
 
 function getClientId() {
   const key = "echochan_client_id";
@@ -739,6 +746,110 @@ function updateJumpButton() {
   } else {
     jumpLatest.classList.remove("hidden");
   }
+}
+
+function initFaviconBadge() {
+  if (faviconLink) return;
+  faviconLink = document.querySelector('link[rel~="icon"]');
+  if (!faviconLink) return;
+  faviconBaseHref = faviconLink.href;
+  faviconBaseImage = new Image();
+  faviconBaseImage.crossOrigin = "anonymous";
+  faviconReady = new Promise((resolve) => {
+    faviconBaseImage.onload = () => resolve(true);
+    faviconBaseImage.onerror = () => resolve(false);
+  });
+  faviconBaseImage.src = faviconBaseHref;
+}
+
+function setFaviconBadge(count) {
+  initFaviconBadge();
+  if (!faviconLink || !faviconReady) return;
+  const safe = Math.max(0, Math.min(999, Number(count) || 0));
+  if (safe === lastBadgeCount) return;
+  lastBadgeCount = safe;
+  if (safe === 0) {
+    faviconLink.href = faviconBaseHref;
+    document.title = baseTitle;
+    return;
+  }
+  faviconReady.then((ok) => {
+    if (!ok) return;
+    if (safe !== lastBadgeCount) return;
+    const size = Math.max(
+      faviconBaseImage.naturalWidth || 0,
+      faviconBaseImage.naturalHeight || 0,
+      32
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(faviconBaseImage, 0, 0, size, size);
+    const radius = Math.round(size * 0.36);
+    const cx = size - radius;
+    const cy = radius;
+    ctx.fillStyle = "#e53935";
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = Math.max(2, Math.round(size * 0.08));
+    ctx.stroke();
+    const text = safe > 99 ? "99+" : String(safe);
+    const fontSize = text.length > 2 ? Math.round(size * 0.45) : Math.round(size * 0.6);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, cx, cy + 1);
+    faviconLink.href = canvas.toDataURL("image/png");
+    document.title = `(${safe}) ${baseTitle}`;
+  });
+}
+
+function getTotalUnread() {
+  let total = 0;
+  unreadByRoom.forEach((count) => {
+    total += count || 0;
+  });
+  return total;
+}
+
+function updateUnreadBadge() {
+  setFaviconBadge(getTotalUnread());
+}
+
+function incrementUnread(room) {
+  const normalized = normalizeRoom(room);
+  if (!normalized) return;
+  const prev = unreadByRoom.get(normalized) || 0;
+  unreadByRoom.set(normalized, Math.min(prev + 1, 999));
+  updateUnreadBadge();
+}
+
+function clearUnread(room) {
+  const normalized = normalizeRoom(room);
+  if (!normalized) return;
+  if (unreadByRoom.delete(normalized)) {
+    updateUnreadBadge();
+  }
+}
+
+function shouldCountUnread(msg) {
+  if (!msg || !msg.room) return false;
+  if (msg.room !== state.currentRoom) return true;
+  if (document.visibilityState !== "visible") return true;
+  if (!isMessagesAtBottom()) return true;
+  return false;
+}
+
+function maybeClearCurrentRoomUnread() {
+  if (document.visibilityState !== "visible") return;
+  if (!isMessagesAtBottom()) return;
+  clearUnread(state.currentRoom);
 }
 
 function findPrevMessageEl(el) {
@@ -1662,6 +1773,7 @@ function renderMessages(list, { autoScroll = true } = {}) {
     state.isAtBottom = isMessagesAtBottom();
     updateJumpButton();
   }
+  maybeClearCurrentRoomUnread();
   if (ordered.length) {
     const last = MESSAGE_FLOW_REVERSE ? ordered[0] : ordered[ordered.length - 1];
     if (last && last.id) {
@@ -2055,6 +2167,7 @@ async function loadRoomMessages(room) {
   state.isLoadingMessages = false;
   renderMessages(list);
   renderRooms();
+  maybeClearCurrentRoomUnread();
   if (useSupabase()) {
     subscribeSupabaseRoom(room);
     loadReactionsForRoom(room);
@@ -2724,6 +2837,9 @@ messageInput.addEventListener("keyup", autoResizeTextarea);
 messagesEl.addEventListener("scroll", () => {
   state.isAtBottom = isMessagesAtBottom();
   updateJumpButton();
+  if (state.isAtBottom) {
+    maybeClearCurrentRoomUnread();
+  }
   if (messagesEl.scrollTop <= 120) {
     loadOlderMessages(state.currentRoom);
   }
@@ -2747,6 +2863,7 @@ messagesEl.addEventListener("scroll", () => {
 });
 jumpLatest?.addEventListener("click", () => {
   scrollMessagesToLatest(true);
+  maybeClearCurrentRoomUnread();
 });
 replyCancel?.addEventListener("click", () => {
   clearReplyTarget();
@@ -2791,12 +2908,16 @@ document.addEventListener("click", (evt) => {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     pollNewMessages(state.currentRoom);
+    maybeClearCurrentRoomUnread();
   }
 });
 
 listen("new-message", (event) => {
   const msg = event.payload;
   if (!msg || !msg.room) return;
+  if (shouldCountUnread(msg)) {
+    incrementUnread(msg.room);
+  }
   if (msg.room === state.currentRoom) {
     const shouldAutoScroll = isMessagesAtBottom();
     addMessageToDom(msg, { sorted: true });
